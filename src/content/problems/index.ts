@@ -6,6 +6,7 @@ import { problems as setB } from "./setB";
 import { problems as setC } from "./setC";
 import { problems as setD } from "./setD";
 import { problems as setE } from "./setE";
+import { problems as setF } from "./setF";
 import { brackets, gridPath, inversions, lis, minCoins, subarrayCount } from "./set3";
 
 /** Ordered roughly by difficulty; the list order is the default order in the Practice page. */
@@ -19,4 +20,5 @@ export const PROBLEMS: ProblemSeed[] = [
   ...setC,
   ...setD,
   ...setE,
+  ...setF,
 ];
