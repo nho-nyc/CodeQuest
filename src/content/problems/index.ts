@@ -1,6 +1,11 @@
 import type { ProblemSeed } from "./types";
 import { aPlusB, countEvens, digitSum, helloName, primeCheck, reverseArray } from "./set1";
 import { lowerBound, longestRun, maxSubarray, pairWithSum, prefixQueries } from "./set2";
+import { problems as setA } from "./setA";
+import { problems as setB } from "./setB";
+import { problems as setC } from "./setC";
+import { problems as setD } from "./setD";
+import { problems as setE } from "./setE";
 import { brackets, gridPath, inversions, lis, minCoins, subarrayCount } from "./set3";
 
 /** Ordered roughly by difficulty; the list order is the default order in the Practice page. */
@@ -9,4 +14,9 @@ export const PROBLEMS: ProblemSeed[] = [
   primeCheck, longestRun, prefixQueries, brackets, pairWithSum,
   lowerBound, maxSubarray, subarrayCount, minCoins, gridPath,
   lis, inversions,
+  ...setA,
+  ...setB,
+  ...setC,
+  ...setD,
+  ...setE,
 ];
