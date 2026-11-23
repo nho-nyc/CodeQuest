@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { CheckCircle2, CircleDashed, Search, Timer } from "lucide-react";
+import { CheckCircle2, ChevronDown, CircleDashed, Search, Timer } from "lucide-react";
 import Link from "next/link";
 import { DifficultyBadge } from "@/components/practice/difficulty-badge";
 import { Card } from "@/components/ui/card";
@@ -59,12 +59,18 @@ export default async function PracticePage({ searchParams }: { searchParams: Pro
             <Link key={s} href={href({ status: s })} className={chip(filters.status === s)}>{s}</Link>
           ))}
         </div>
-        <div className="flex flex-wrap gap-1.5" aria-label="Topic">
-          <Link href={href({ tag: undefined })} className={chip(!filters.tag)}>All topics</Link>
-          {data.tags.map((t) => (
-            <Link key={t} href={href({ tag: t })} className={chip(filters.tag === t)}>{t}</Link>
-          ))}
-        </div>
+        <details className="group">
+          <summary className="inline-flex cursor-pointer list-none items-center gap-1.5 rounded-full border-2 border-line px-3 py-1 text-xs font-extrabold uppercase text-muted hover:bg-surface-2 [&::-webkit-details-marker]:hidden">
+            Topics{filters.tag ? `: ${filters.tag}` : ""}
+            <ChevronDown size={14} className="transition-transform group-open:rotate-180" />
+          </summary>
+          <div className="mt-2 flex flex-wrap gap-1.5" aria-label="Topic">
+            <Link href={href({ tag: undefined })} className={chip(!filters.tag)}>All topics</Link>
+            {data.tags.map((t) => (
+              <Link key={t} href={href({ tag: t })} className={chip(filters.tag === t)}>{t}</Link>
+            ))}
+          </div>
+        </details>
       </div>
 
       <p className="mt-5 text-sm font-bold text-muted">{data.total} problem{data.total === 1 ? "" : "s"}</p>
