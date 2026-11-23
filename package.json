@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "vercel-build": "npm run db:seed && tsx scripts/seed-problems-lite.ts && next build",
+    "vercel-build": "npm run db:seed && tsx scripts/seed-problems-lite.ts && tsx scripts/normalize-problem-tags.ts && next build",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",

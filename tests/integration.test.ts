@@ -134,7 +134,7 @@ d("lesson engine (real database)", () => {
     expect(w1.units[0].lessons[0].state).toBe("perfected");
     expect(w1.units[0].lessons[1].state).toBe("in_progress");
     expect(w1.units[0].lessons[2].state).toBe("locked");
-    expect(path.find((w: { slug: string }) => w.slug === "cpp-intermediate").playable).toBe(false);
+    expect(path.find((w: { slug: string }) => w.slug === "algorithms").playable).toBe(false);
   });
 
   it("rejects answers for another user's run", async () => {

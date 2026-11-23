@@ -16,7 +16,7 @@ d("social (real database)", () => {
     const env = { ...process.env, DATABASE_URL: url };
     execFileSync("npx", ["tsx", "scripts/migrate.ts"], { env, stdio: "pipe" });
     execFileSync("npx", ["tsx", "scripts/seed.ts"], { env, stdio: "pipe" });
-    execFileSync("npx", ["tsx", "scripts/seed-problems.ts"], { env, stdio: "pipe" });
+    execFileSync("npx", ["tsx", "scripts/seed-problems-lite.ts"], { env, stdio: "pipe" });
     orm = await import("drizzle-orm");
     ({ getDb: db, schema } = await import("@/server/db/client"));
     s = await import("@/server/services/social");

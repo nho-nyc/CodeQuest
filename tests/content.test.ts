@@ -27,3 +27,25 @@ describe("curriculum content", () => {
     }
   });
 });
+
+import { PROBLEMS } from "@/content/problems";
+import { canonicalTag, canonicalTags } from "@/content/problems/tags";
+
+describe("problem tags", () => {
+  it("merges duplicate spellings", () => {
+    expect(canonicalTag("Binary Search")).toBe("binary-search");
+    expect(canonicalTag("binary search on answer")).toBe("binary-search");
+    expect(canonicalTag("dynamic programming")).toBe("dp");
+    expect(canonicalTags(["prefix sums", "prefix-sum", "arrays"])).toEqual(["prefix-sums", "arrays"]);
+  });
+  it("library tags are canonical, idempotent and not fragmented", () => {
+    const all = new Set<string>();
+    for (const p of PROBLEMS) {
+      expect(p.tags.length).toBeGreaterThan(0);
+      expect(canonicalTags(p.tags)).toEqual(p.tags);
+      p.tags.forEach((t) => all.add(t));
+    }
+    expect(all.size).toBeLessThanOrEqual(70);
+    expect(all.has("binary search")).toBe(false);
+  });
+});

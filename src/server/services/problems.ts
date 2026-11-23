@@ -138,7 +138,32 @@ export type ProblemDetail = {
   referenceSolution: string | null;
   xpReward: number;
   judgeAvailable: boolean;
+  /** Rule-based suggestions: same topics, close difficulty, unsolved first. Empty inside contests. */
+  related: RelatedProblem[];
 };
+
+export type RelatedProblem = { slug: string; title: string; difficulty: Difficulty; rating: number; solved: boolean; reason: string };
+
+/** Transparent rule: share at least one topic with this problem; prefer unsolved, more shared topics, then the closest rating. */
+export async function getRelatedProblems(userId: string, problemId: string, tags: string[], rating: number, limit = 4): Promise<RelatedProblem[]> {
+  if (tags.length === 0) return [];
+  const mine = sql`ARRAY[${sql.join(tags.map((t) => sql`${t}`), sql`, `)}]::text[]`;
+  const rows = await getDb().execute(sql`
+    select p.slug, p.title, p.difficulty, p.rating, coalesce(up.solved, false) as solved,
+           array(select unnest(p.tags) intersect select unnest(${mine})) as shared
+    from problems p
+    left join user_problem_progress up on up.problem_id = p.id and up.user_id = ${userId}
+    where p.published and p.deleted_at is null and p.id <> ${problemId} and p.tags && ${mine}
+    order by coalesce(up.solved, false) asc,
+             cardinality(array(select unnest(p.tags) intersect select unnest(${mine}))) desc,
+             abs(p.rating - ${rating}) asc, p.slug asc
+    limit ${limit}`);
+  return (rows.rows as Array<{ slug: string; title: string; difficulty: Difficulty; rating: number; solved: boolean; shared: string[] }>).map((r) => {
+    const diff = r.rating - rating;
+    const level = diff > 150 ? "a step harder" : diff < -150 ? "a step easier" : "similar difficulty";
+    return { slug: r.slug, title: r.title, difficulty: r.difficulty, rating: Number(r.rating), solved: r.solved, reason: `Shares ${r.shared.slice(0, 2).join(", ")}; ${level}` };
+  });
+}
 
 async function findProblem(slug: string) {
   const [p] = await getDb()
@@ -179,6 +204,7 @@ export async function getProblem(userId: string, slug: string, opts: { forContes
     referenceSolution: solved ? p.referenceSolution : null,
     xpReward: (await getXpRules()).problem[p.difficulty] ?? 0,
     judgeAvailable: getJudge() !== null,
+    related: opts.forContest ? [] : await getRelatedProblems(userId, p.id, p.tags, p.rating),
   };
 }
 

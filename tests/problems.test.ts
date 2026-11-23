@@ -33,6 +33,9 @@ d("practice: run, submit, hints (real DB + judge protocol)", () => {
     svc = await import("@/server/services/problems");
     const h = db();
     await h.execute(orm.sql`TRUNCATE users, problems CASCADE`);
+    // XP assertions below are about problem XP only: switch off quest/achievement rewards so the result does not depend on other suites
+    await h.update(schema.dailyQuests).set({ active: false });
+    await h.update(schema.achievements).set({ active: false });
     const [u] = await h.insert(schema.users).values({ email: "p@example.com", username: "ptester", passwordHash: "x", displayName: "P", timezone: "UTC" }).returning();
     userId = u.id;
     await h.insert(schema.userStats).values({ userId });
@@ -79,6 +82,24 @@ d("practice: run, submit, hints (real DB + judge protocol)", () => {
     expect(JSON.stringify(p)).not.toContain("SECRET");
     expect(p.hintsRevealed).toEqual([]);
     expect(p.judgeAvailable).toBe(true);
+  });
+
+  it("suggests related problems by shared topic, unsolved and closest rating first, never itself or other topics", async () => {
+    const h = db();
+    const base = { statement: "x", inputFormat: "x", outputFormat: "x", constraints: "x", difficulty: "easy", timeLimitMs: 500, memoryLimitMb: 256, samples: [{ input: "1\n", output: "1\n" }], hints: ["aaaaaaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbbbbbb", "cccccccccccccccccccc"], editorial: "e", referenceSolution: "r" };
+    await h.insert(schema.problems).values([
+      { ...base, slug: "rel-near", title: "Near", rating: 1050, tags: ["math", "test"] },
+      { ...base, slug: "rel-far", title: "Far", rating: 1800, tags: ["math"] },
+      { ...base, slug: "rel-other", title: "Other", rating: 1000, tags: ["unrelated-topic"] },
+    ]);
+    const p = await svc.getProblem(userId, slug);
+    const slugs = p.related.map((r: { slug: string }) => r.slug);
+    expect(slugs.slice(0, 2)).toEqual(["rel-near", "rel-far"]);
+    expect(slugs).not.toContain(slug);
+    expect(slugs).not.toContain("rel-other");
+    expect(p.related[0].reason).toContain("similar difficulty");
+    expect(JSON.stringify(p.related)).not.toContain("SECRET");
+    await h.delete(schema.problems).where(orm.inArray(schema.problems.slug, ["rel-near", "rel-far", "rel-other"]));
   });
 
   it("never exposes hidden tests or expected outputs", async () => {

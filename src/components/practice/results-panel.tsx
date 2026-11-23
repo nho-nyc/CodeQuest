@@ -2,6 +2,7 @@ import { CheckCircle2, Loader2, XCircle, Zap } from "lucide-react";
 import { cn } from "@/lib/cn";
 import type { RunResult, SubmitResult } from "@/server/services/problems";
 import { VERDICT_LABEL, verdictColor } from "./verdict";
+import { explainCompileOutput, VERDICT_HELP } from "./verdict-help";
 
 const Pre = ({ children, className }: { children: string; className?: string }) => (
   <pre className={cn("max-h-40 overflow-auto whitespace-pre-wrap break-words rounded-xl bg-code p-2.5 font-mono text-xs", className)}>{children || " "}</pre>
@@ -66,6 +67,24 @@ export function SubmitPanel({ result }: { result: SubmitResult }) {
       </div>
       {result.failedTest !== null && <p className="text-sm text-muted">First failing test: #{result.failedTest}. Hidden test data is never shown.</p>}
       {result.compileOutput && <Pre>{result.compileOutput}</Pre>}
+      {result.verdict === "compilation_error" && result.compileOutput && explainCompileOutput(result.compileOutput).length > 0 && (
+        <ul className="flex flex-col gap-1 rounded-2xl bg-sky/10 px-3 py-2 text-sm" aria-label="What the compiler is telling you">
+          {explainCompileOutput(result.compileOutput).map((t) => (
+            <li key={t}>{t}</li>
+          ))}
+        </ul>
+      )}
+      {!ok && VERDICT_HELP[result.verdict] && (
+        <details className="rounded-2xl border-2 border-line p-3 text-sm">
+          <summary className="cursor-pointer font-extrabold">What does this mean and what should I check?</summary>
+          <p className="mt-2 text-muted">{VERDICT_HELP[result.verdict]!.meaning}</p>
+          <ul className="mt-2 list-disc pl-5">
+            {VERDICT_HELP[result.verdict]!.tips.map((t) => (
+              <li key={t}>{t}</li>
+            ))}
+          </ul>
+        </details>
+      )}
       {ok && result.firstSolve && (
         <p className="flex items-center gap-2 rounded-2xl bg-gold/20 px-3 py-2 font-extrabold text-gold-dark dark:text-gold">
           <Zap size={18} fill="currentColor" /> +{result.xpGained} XP earned!

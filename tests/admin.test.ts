@@ -20,7 +20,7 @@ d("admin CMS (real database)", () => {
     env = { ...process.env, DATABASE_URL: url };
     await exec("scripts/migrate.ts");
     await exec("scripts/seed.ts");
-    await exec("scripts/seed-problems.ts");
+    await exec("scripts/seed-problems-lite.ts");
     orm = await import("drizzle-orm");
     ({ getDb: db, schema } = await import("@/server/db/client"));
     a = await import("@/server/services/admin");
@@ -61,7 +61,7 @@ d("admin CMS (real database)", () => {
     await h0.execute(orm.sql`update lessons set locked = false`);
     await h0.execute(orm.sql`update problems set locked = false`);
     await exec("scripts/seed.ts");
-    await exec("scripts/seed-problems.ts");
+    await exec("scripts/seed-problems-lite.ts");
     const { getPool } = await import("@/server/db/client");
     await getPool().end();
   }, 120_000);
@@ -158,7 +158,7 @@ d("admin CMS (real database)", () => {
     await a.addTestCases(editor, pid, [{ input: "9 9 9\n", expected: "27\n" }], { replace: true });
     expect(await a.listTestCases(editor, pid)).toHaveLength(1);
     await a.saveProblem(editor, pid, { ...form, title: "Add Three Numbers" });
-    await exec("scripts/seed-problems.ts");
+    await exec("scripts/seed-problems-lite.ts");
     const [p] = await db().select().from(schema.problems).where(orm.eq(schema.problems.id, pid));
     expect(p.title).toBe("Add Three Numbers");
     expect(p.published).toBe(false); // saveProblem form does not publish; seed does not touch locked
