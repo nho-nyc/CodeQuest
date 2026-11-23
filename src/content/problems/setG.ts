@@ -12,7 +12,6 @@ const P = (s: Spec): ProblemSeed => ({
 });
 
 type Rng = ReturnType<typeof rng>;
-const nl = (xs: (string | number | bigint)[]) => `${xs.join("\n")}\n`;
 const arr = (r: Rng, n: number, lo: number, hi: number) => Array.from({ length: n }, () => r.int(lo, hi));
 const str = (r: Rng, n: number, alpha: number) => Array.from({ length: n }, () => String.fromCharCode(97 + r.int(0, alpha - 1))).join("");
 const multi = (cases: string[]) => `${cases.length}\n${cases.join("\n")}\n`;

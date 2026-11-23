@@ -134,7 +134,7 @@ User code is never executed in the Next.js process. Run/Submit are rate limited 
 
 ### Known gaps and deliberate deviations in Phase 3
 
-- **Century** (solve 100 problems) exists but cannot be reached yet: the library has 17 problems.
+- **Century** (solve 100 problems) can now be reached: the library has 206 problems.
 - **Bug Hunter** needs 5 "find the bug" questions instead of the spec's 10, because World 1 contains only 7 such questions. Raise the threshold in `src/content/gamification.ts` when more content exists.
 - Quest and achievement rewards are not counted by the "earn XP" quest, so they cannot chain into each other.
 - Leaderboard usernames are visible to all signed-in learners. A privacy toggle is not built yet.
