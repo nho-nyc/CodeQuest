@@ -46,8 +46,9 @@ export function LessonPlayer({ run }: { run: RunState }) {
   const [leaving, setLeaving] = useState(false);
   const [summary, setSummary] = useState<CompleteSummary | null>(null);
   const [attempt, setAttempt] = useState(0);
+  const [failedMessage, setFailedMessage] = useState<string | null>(null);
   // Hearts only apply to a lesson you have not finished before. Replays are free practice.
-  const heartsApply = !run.alreadyCompleted;
+  const heartsApply = !run.alreadyCompleted && run.kind !== "assessment";
   const [hearts, setHearts] = useState(run.hearts.hearts);
   const [noHearts, setNoHearts] = useState(heartsApply && run.hearts.hearts === 0 && run.resumed);
 
@@ -93,6 +94,10 @@ export function LessonPlayer({ run }: { run: RunState }) {
           setPhase("done");
           router.refresh();
         } catch (e) {
+          if (e instanceof ApiError && e.code === "assessment_failed") {
+            setFailedMessage(e.message);
+            return;
+          }
           setError(e instanceof Error ? e.message : "Could not finish the lesson");
           setCorrectCount((c) => c - 1);
         } finally {
@@ -126,6 +131,26 @@ export function LessonPlayer({ run }: { run: RunState }) {
     return () => window.removeEventListener("keydown", onKey);
   });
 
+  if (failedMessage) {
+    return (
+      <main className="grid min-h-dvh place-items-center px-4 py-10">
+        <div className="w-full max-w-md text-center">
+          <h1 className="text-2xl font-black">Assessment not passed yet</h1>
+          <p className="mt-3 text-muted">{failedMessage}</p>
+          <p className="mt-2 text-sm text-muted">Nothing is lost. Re-read the lessons of this unit, then start a fresh attempt.</p>
+          <div className="mt-6 flex flex-col gap-3">
+            <Button size="lg" className="w-full" onClick={() => window.location.reload()}>
+              Try again
+            </Button>
+            <ButtonLink href="/learn" size="lg" variant="outline" className="w-full">
+              Back to the path
+            </ButtonLink>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   if (phase === "done" && summary) {
     return (
       <main className="grid min-h-dvh place-items-center px-4 py-10">
@@ -145,6 +170,11 @@ export function LessonPlayer({ run }: { run: RunState }) {
         <span className="whitespace-nowrap text-sm font-extrabold text-muted">
           {Math.min(correctCount + 1, run.total)}/{run.total}
         </span>
+        {run.maxMistakes !== null && (
+          <span className={cn("whitespace-nowrap text-xs font-extrabold uppercase", mistakes > run.maxMistakes ? "text-danger" : "text-muted")} aria-label={`${mistakes} of ${run.maxMistakes} allowed mistakes`}>
+            Mistakes {mistakes}/{run.maxMistakes}
+          </span>
+        )}
         {heartsApply && (
           <span className="flex items-center gap-1 font-extrabold text-danger" aria-label={`${hearts} hearts left`}>
             <Heart size={22} fill={hearts > 0 ? "currentColor" : "none"} /> {hearts}
@@ -173,6 +203,7 @@ export function LessonPlayer({ run }: { run: RunState }) {
           )}
           {phase === "learn" ? (
             <>
+              {run.maxMistakes !== null && <p className="text-center text-xs font-bold text-sky">Unit assessment: pass with at most {run.maxMistakes} mistakes. It does not use hearts, and you can retry.</p>}
               {run.alreadyCompleted && <p className="text-center text-xs text-muted">You have completed this lesson before. Replays are practice and earn no new XP, apart from a one-time Perfect bonus.</p>}
               <Button size="lg" onClick={() => (heartsApply && hearts === 0 ? setNoHearts(true) : setPhase("quiz"))} className="w-full sm:ml-auto sm:w-56">
                 Start quiz

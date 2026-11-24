@@ -10,7 +10,7 @@ const OFFSETS = [0, 44, 64, 44, 0, -44, -64, -44];
 
 export function UnitSection({ unit, index, color }: { unit: PathUnit; index: number; color: string }) {
   return (
-    <section aria-labelledby={`unit-${unit.id}`} className="mb-12 animate-rise" style={{ animationDelay: `${Math.min(index, 4) * 90}ms` }}>
+    <section id={`unit-${unit.id}`} aria-labelledby={`unit-title-${unit.id}`} className="mb-12 scroll-mt-20 animate-rise" style={{ animationDelay: `${Math.min(index, 4) * 90}ms` }}>
       <div className="rounded-3xl border-b-4 p-5 text-white" style={{ background: color, borderColor: "rgb(0 0 0 / 0.18)" }}>
         <div className="flex items-start gap-4">
           <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-white/20">
@@ -18,7 +18,7 @@ export function UnitSection({ unit, index, color }: { unit: PathUnit; index: num
           </span>
           <div className="min-w-0 flex-1">
             <p className="text-xs font-extrabold uppercase tracking-widest text-white/80">Unit {index + 1}</p>
-            <h3 id={`unit-${unit.id}`} className="text-xl font-black">
+            <h3 id={`unit-title-${unit.id}`} className="text-xl font-black">
               {unit.title}
             </h3>
             <p className="mt-1 text-sm text-white/90">{unit.description}</p>
@@ -58,27 +58,29 @@ export function UnitSection({ unit, index, color }: { unit: PathUnit; index: num
             </ul>
           </details>
         )}
+        <div className="mt-3 flex flex-wrap items-center gap-2">
         {unit.assessment && (
-          <p className="mt-3 inline-flex items-center gap-2 rounded-full bg-white/20 px-3 py-1 text-xs font-extrabold uppercase">
+          <p className="inline-flex items-center gap-2 rounded-xl bg-white/20 px-3 py-1.5 text-xs font-extrabold uppercase">
             <ShieldCheck size={14} />
             {unit.assessment.state === "completed" || unit.assessment.state === "perfected"
               ? unit.assessment.required ? "Assessment passed" : "Checkpoint done"
               : unit.assessment.state === "locked"
-                ? unit.assessment.required ? "Assessment: finish the lessons first" : "Checkpoint unlocks after the lessons"
+                ? unit.assessment.required ? "Assessment unlocks after the lessons" : "Checkpoint unlocks after the lessons"
                 : unit.assessment.required ? "Assessment ready: it unlocks the next units" : "Optional checkpoint ready"}
           </p>
         )}
-        {unit.skipped && <p className="mt-3 text-xs font-extrabold uppercase text-white/90">Skipped by test. You can still replay any lesson.</p>}
+        {unit.skipped && <p className="w-full text-xs font-extrabold uppercase text-white/90">Skipped by test. You can still replay any lesson.</p>}
         {unit.canSkip && (
-          <Link href={`/learn/skip/${unit.id}`} className="mt-3 inline-flex items-center gap-2 rounded-xl bg-white/20 px-3 py-1.5 text-xs font-extrabold uppercase hover:bg-white/30">
+          <Link href={`/learn/skip/${unit.id}`} className="inline-flex items-center gap-2 rounded-xl bg-white/20 px-3 py-1.5 text-xs font-extrabold uppercase hover:bg-white/30">
             <FastForward size={14} /> Already know this? Test out
           </Link>
         )}
         {externalForUnit(unit.slug).length > 0 && (
-          <Link href={`/practice/links#${unit.slug}`} className="ml-2 mt-3 inline-flex items-center gap-2 rounded-xl bg-white/20 px-3 py-1.5 text-xs font-extrabold uppercase hover:bg-white/30">
-            <ExternalLink size={14} /> {externalForUnit(unit.slug).length} practice links
+          <Link href={`/practice/links#${unit.slug}`} className="inline-flex items-center gap-2 rounded-xl bg-white/20 px-3 py-1.5 text-xs font-extrabold uppercase hover:bg-white/30">
+            <ExternalLink size={14} /> {externalForUnit(unit.slug).length} external {externalForUnit(unit.slug).length === 1 ? "problem" : "problems"}
           </Link>
         )}
+        </div>
       </div>
       {unit.practice.length > 0 && (
         <div className="mt-4 rounded-2xl border-2 border-line p-3">

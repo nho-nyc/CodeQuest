@@ -149,7 +149,7 @@ export const w2unit7: UnitSeed = {
         fill("Complete the code to answer sum(l..r) with a prefix array pre of size n + 1.", progh(["vector"], "vector<int> pre = {0, 2, 5, 6, 12};\nint l = 1, r = 2;\ncout << pre[r + 1] ___ pre[l];"), ["-"], "Subtract the part before l. 6 - 2 = 4 (3 + 1)."),
         arrange("Arrange the lines of a two-pointer search on a sorted array for a pair that sums to target.", ["int l = 0, r = n - 1;", "while (l < r) {", "    int s = a[l] + a[r];", "    if (s == target) break;", "    if (s < target) l++;", "    else r--;", "}"], "Initialise, loop while the pointers are apart, compare, then move the right pointer."),
         mc("The array is NOT sorted, n = 10^5, and you must answer 10^5 range-sum questions. Which fits best?", ["Prefix sums", "Two pointers", "Sorting then binary search", "Trying all pairs"], 0, "Range sums need no order; prefix sums answer each in O(1)."),
-        mc("You must find the largest sum of 4 consecutive values in an array of size 10^6. Which is the right plan?", ["Sliding window", "Prefix sums on every pair", "Two nested loops over all pairs", "Recursion"], 0, "A fixed-size window slides in O(n)."),
+        mc("You must find the largest sum of k consecutive values with n = 10^6 and k = 5 * 10^5. Which statement is true?", ["Re-adding every window costs about 2.5 * 10^11 steps; a sliding window needs about 10^6", "Both approaches need about 10^6 steps", "Re-adding every window is fine because k is only half of n", "A sliding window needs about n * k steps"], 0, "There are about 5 * 10^5 windows with 5 * 10^5 values each. Sliding adds one value and removes one per move."),
       ],
     },
   ],

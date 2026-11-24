@@ -48,6 +48,9 @@ export type RunState = {
   /** Questions not yet answered correctly in this run, in order. The answers are never included. */
   remaining: PublicQuestion[];
   alreadyCompleted: boolean;
+  kind: "lesson" | "assessment" | "checkpoint";
+  /** Assessments only: mistakes allowed before the attempt fails (hearts do not apply to them). */
+  maxMistakes: number | null;
   /** Hearts only matter for a first-time lesson. Replays are unlimited practice. */
   hearts: HeartsView;
 };
@@ -106,6 +109,8 @@ export async function startOrResumeRun(userId: string, lessonId: string): Promis
     resumed: resumed && (done.size > 0 || run.mistakes > 0),
     remaining: questions.filter((q) => !done.has(q.id)).map(toPublic),
     alreadyCompleted: (prior?.n ?? 0) > 0,
+    kind: lesson.kind === "assessment" || lesson.kind === "checkpoint" ? lesson.kind : "lesson",
+    maxMistakes: lesson.kind === "assessment" ? allowedAssessmentMistakes(questions.length) : null,
     hearts: await getHearts(userId),
   };
 }
@@ -145,7 +150,9 @@ export async function answerQuestion(userId: string, runId: string, questionId: 
 
   // Hearts: only a first-time lesson costs hearts. With none left the learner cannot answer, but nothing is lost:
   // the run and every correct answer stay saved and can be continued when a heart is back.
-  const firstTime = await isFirstTime(userId, run.lessonId);
+  // Assessments have their own consequence (a pass threshold), so they neither cost hearts nor need them.
+  const [lessonRow] = await db.select({ kind: schema.lessons.kind }).from(schema.lessons).where(eq(schema.lessons.id, run.lessonId)).limit(1);
+  const firstTime = lessonRow?.kind !== "assessment" && (await isFirstTime(userId, run.lessonId));
   const heartsNow = await getHearts(userId);
   if (firstTime && heartsNow.hearts === 0) throw new ServiceError("You are out of hearts. Your progress is saved.", 409, "out_of_hearts");
 
@@ -198,8 +205,30 @@ export type CompletionSummary = {
   hearts: HeartsView;
 };
 
+/** A unit assessment is passed with at most this share of the questions answered wrongly on the first try (minimum 1 slip). */
+export const ASSESSMENT_MAX_MISTAKE_RATIO = 0.25;
+export const allowedAssessmentMistakes = (total: number) => Math.max(1, Math.floor(total * ASSESSMENT_MAX_MISTAKE_RATIO));
+
+/**
+ * Assessments are not "retry until it clicks": too many mistakes fail the attempt. The run is abandoned (outside the
+ * completion transaction, so it persists) and the next visit starts a fresh run. Nothing is credited for a failed attempt.
+ */
+async function enforceAssessmentThreshold(userId: string, runId: string) {
+  const db = getDb();
+  const [run] = await db.select().from(schema.lessonRuns).where(and(eq(schema.lessonRuns.id, runId), eq(schema.lessonRuns.userId, userId))).limit(1);
+  if (!run || run.status !== "in_progress") return;
+  const [lesson] = await db.select({ kind: schema.lessons.kind }).from(schema.lessons).where(eq(schema.lessons.id, run.lessonId)).limit(1);
+  if (lesson?.kind !== "assessment") return;
+  const [q] = await db.select({ n: count() }).from(schema.lessonQuestions).where(and(eq(schema.lessonQuestions.lessonId, run.lessonId), isNull(schema.lessonQuestions.deletedAt)));
+  const allowed = allowedAssessmentMistakes(Number(q?.n ?? 0));
+  if (run.mistakes <= allowed) return;
+  await db.update(schema.lessonRuns).set({ status: "abandoned" }).where(eq(schema.lessonRuns.id, runId));
+  throw new ServiceError(`Not passed: ${run.mistakes} mistakes, at most ${allowed} allowed. Review the unit and try again.`, 409, "assessment_failed");
+}
+
 export async function completeRun(userId: string, runId: string): Promise<CompletionSummary> {
   const db = getDb();
+  await enforceAssessmentThreshold(userId, runId);
   return db.transaction(async (tx) => {
     // Serialise concurrent completions for this user.
     const [stats] = await tx.select().from(schema.userStats).where(eq(schema.userStats.userId, userId)).for("update");

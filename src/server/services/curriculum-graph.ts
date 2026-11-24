@@ -22,8 +22,8 @@ export type UnitGate = {
 const required = (l: GraphLesson) => l.kind !== "checkpoint";
 
 export function isUnitMastered(u: GraphUnit, done: ReadonlySet<string>): boolean {
-  const req = u.lessons.filter(required);
-  return req.length > 0 && req.every((l) => done.has(l.id));
+  // A unit with nothing required (e.g. all lessons unpublished) cannot hold anyone back.
+  return u.lessons.filter(required).every((l) => done.has(l.id));
 }
 
 /** Units in global curriculum order. */
@@ -87,4 +87,29 @@ export function unitDepths(units: Array<{ slug: string; prerequisites: Array<{ s
   };
   units.forEach((u) => depth(u.slug, new Set()));
   return memo;
+}
+
+/**
+ * Grid positions for the skill map: column = prerequisite depth, row chosen near the average row of the unit's
+ * prerequisites so that dependency lines stay short and mostly horizontal. Units must be in curriculum order.
+ */
+export function layoutUnits(units: Array<{ slug: string; prerequisites: Array<{ slug: string }> }>): Map<string, { col: number; row: number }> {
+  const depths = unitDepths(units);
+  const maxCol = Math.max(0, ...depths.values());
+  const pos = new Map<string, { col: number; row: number }>();
+  for (let col = 0; col <= maxCol; col++) {
+    const inCol = units.filter((u) => depths.get(u.slug) === col);
+    const wanted = inCol.map((u, i) => {
+      const rows = u.prerequisites.map((p) => pos.get(p.slug)?.row).filter((r): r is number => r !== undefined);
+      return { u, want: rows.length ? rows.reduce((a, b) => a + b, 0) / rows.length : i, order: i };
+    });
+    wanted.sort((a, b) => a.want - b.want || a.order - b.order);
+    let last = -1;
+    for (const { u, want } of wanted) {
+      const row = Math.max(Math.round(want), last + 1);
+      pos.set(u.slug, { col, row });
+      last = row;
+    }
+  }
+  return pos;
 }

@@ -49,3 +49,26 @@ describe("problem tags", () => {
     expect(all.has("binary search")).toBe(false);
   });
 });
+
+describe("choice questions are not biased towards one position", () => {
+  it("correct answers are spread over all option positions", () => {
+    const counts = [0, 0, 0, 0];
+    let n = 0;
+    for (const u of WORLDS.flatMap((w) => w.units))
+      for (const l of u.lessons)
+        for (const q of l.questions)
+          if (["multiple_choice", "predict_output", "find_bug"].includes(q.type)) {
+            counts[(q.answer as { index: number }).index] = (counts[(q.answer as { index: number }).index] ?? 0) + 1;
+            n++;
+          }
+    expect(n).toBeGreaterThan(200);
+    for (const c of counts) expect(c / n).toBeGreaterThan(0.15); // fair share is 0.25
+  });
+  it("every new assessment spreads its own answers too (not just the whole curriculum)", () => {
+    for (const slug of ["problem-solving", "prefix-two-pointers", "recursion", "backtracking", "greedy", "graph-traversal", "dp-intro"]) {
+      const a = WORLDS.flatMap((w) => w.units).find((u) => u.slug === slug)!.lessons.at(-1)!;
+      const idx = a.questions.filter((q) => ["multiple_choice", "predict_output", "find_bug"].includes(q.type)).map((q) => (q.answer as { index: number }).index);
+      expect(new Set(idx).size, `${slug} answer positions`).toBeGreaterThanOrEqual(2);
+    }
+  });
+});

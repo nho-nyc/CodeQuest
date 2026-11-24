@@ -103,4 +103,65 @@ d("curriculum graph on the learning path (real database)", () => {
     expect(next.kind).not.toBe("checkpoint");
     expect(next.state).toMatch(/available|in_progress/);
   });
+
+  describe("assessments through the real lesson engine", () => {
+    let uid: string;
+    let run: any;
+    let asm: any;
+    const correct = (a: any) => ("index" in a ? { index: a.index } : "accepted" in a ? { text: a.accepted[0] } : "order" in a ? { order: a.order } : { pairs: a.pairs });
+    /** Plays the assessment, answering the first `wrong` index-type questions wrongly before correcting them. */
+    async function play(wrong: number) {
+      const started = await run.startOrResumeRun(uid, asm.id);
+      let made = 0;
+      for (const q of started.remaining) {
+        const [row] = await db().select().from(schema.lessonQuestions).where(orm.eq(schema.lessonQuestions.id, q.id));
+        if (made < wrong && "index" in row.answer) {
+          made++;
+          const r = await run.answerQuestion(uid, started.runId, q.id, { index: (row.answer.index + 1) % (row.data.options as string[]).length });
+          expect(r.correct).toBe(false);
+        }
+        expect((await run.answerQuestion(uid, started.runId, q.id, correct(row.answer))).correct).toBe(true);
+      }
+      return started.runId as string;
+    }
+    beforeAll(async () => {
+      run = await import("@/server/services/lesson-run");
+      const [u] = await db().insert(schema.users).values({ email: "asm@example.com", username: "asmuser", passwordHash: "x", displayName: "asm", timezone: "UTC" }).returning();
+      await db().insert(schema.userStats).values({ userId: u.id });
+      uid = u.id;
+      await db().execute(orm.sql`update daily_quests set active = false`);
+      await db().execute(orm.sql`update achievements set active = false`);
+      for (const s of ["getting-started", "variables-data-types", "operators", "conditionals", "loops", "arrays", "vectors"]) for (const l of byUnit.get(s).lessons) await db().insert(schema.userLessonProgress).values({ userId: uid, lessonId: l.id, completions: 1 });
+      const ps = byUnit.get("problem-solving");
+      for (const l of ps.lessons.slice(0, -1)) await db().insert(schema.userLessonProgress).values({ userId: uid, lessonId: l.id, completions: 1 });
+      asm = ps.lessons.at(-1);
+    });
+    const mastered = async () => (await path.getLearningPath(uid)).flatMap((w: any) => w.units).find((u: any) => u.slug === "problem-solving").mastered;
+
+    it("too many mistakes fail the attempt: nothing is credited and a fresh run starts", async () => {
+      const runId = await play(3);
+      await expect(run.completeRun(uid, runId)).rejects.toMatchObject({ status: 409, code: "assessment_failed" });
+      expect(await mastered()).toBe(false);
+      const [r] = await db().select().from(schema.lessonRuns).where(orm.eq(schema.lessonRuns.id, runId));
+      expect(r.status).toBe("abandoned");
+      const fresh = await run.startOrResumeRun(uid, asm.id);
+      expect(fresh.runId).not.toBe(runId);
+      expect(fresh.remaining.length).toBe(fresh.total);
+      expect((await path.getLearningPath(uid)).flatMap((w: any) => w.units).find((u: any) => u.slug === "prefix-two-pointers").lockedReason).not.toBeNull();
+    });
+    it("passing within the allowed mistakes completes the assessment and masters the unit", async () => {
+      expect(run.allowedAssessmentMistakes(8)).toBe(2);
+      const runId = await play(2);
+      const summary = await run.completeRun(uid, runId);
+      expect(summary.xpGained).toBeGreaterThan(0);
+      expect(await mastered()).toBe(true);
+      expect((await path.getLearningPath(uid)).flatMap((w: any) => w.units).find((u: any) => u.slug === "prefix-two-pointers").lockedReason).toBeNull();
+    });
+    it("a unit with no required lessons never blocks its dependents", async () => {
+      const g = await import("@/server/services/curriculum-graph");
+      const U = (slug: string, prerequisites: string[], lessons: Array<{ id: string; kind: string }>) => ({ id: slug, slug, title: slug, prerequisites, lessons });
+      const graph = [U("empty", [], []), U("next", ["empty"], [{ id: "n0", kind: "lesson" }])];
+      expect(g.isLessonUnlockedIn(graph, new Set(), "n0")).toBe(true);
+    });
+  });
 });

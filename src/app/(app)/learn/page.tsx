@@ -10,11 +10,14 @@ import { getLearningPath, nextLesson } from "@/server/services/path";
 
 export const metadata: Metadata = { title: "Learning Path" };
 
-export default async function LearnPage() {
+export default async function LearnPage({ searchParams }: { searchParams: Promise<{ locked?: string }> }) {
+  const { locked } = await searchParams;
   const user = await requireUser();
   const path = await getLearningPath(user.id);
   const next = nextLesson(path);
   const nextUnit = next ? path.flatMap((w) => w.units).find((u) => u.lessons.some((l) => l.id === next.id)) : null;
+  const lockedUnit = locked ? path.flatMap((w) => w.units).find((u) => u.lessons.some((l) => l.id === locked)) : null;
+  const lockedLesson = lockedUnit?.lessons.find((l) => l.id === locked);
   const recommended = path.find((w) => w.slug === user.recommendedWorldSlug);
 
   return (
@@ -26,6 +29,12 @@ export default async function LearnPage() {
           <MapIcon size={14} /> Skill map
         </Link>
       </div>
+      {lockedUnit && lockedLesson && lockedLesson.state === "locked" && (
+        <Card role="status" className="mt-5 border-gold/50 bg-gold/10">
+          <p className="font-extrabold">&ldquo;{lockedLesson.title}&rdquo; is locked</p>
+          <p className="mt-1 text-sm text-muted">{lockedUnit.lockedReason ?? `Finish the earlier lessons in ${lockedUnit.title} first.`}</p>
+        </Card>
+      )}
       {next && nextUnit && (
         <Card className="mt-5 border-brand/40 bg-brand/10">
           <p className="text-xs font-extrabold uppercase text-brand">Next step</p>

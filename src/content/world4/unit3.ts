@@ -102,7 +102,7 @@ export const w4unit3: UnitSeed = {
         mc("Coins {1, 6, 10}, amount 12. What does 'largest coin first' give, and is it optimal?", ["10 + 1 + 1 = 3 coins, not optimal (6 + 6 = 2)", "6 + 6 = 2 coins, optimal", "10 + 1 + 1 = 3 coins, optimal", "12 coins"], 0, "A counterexample: greedy is not valid for this coin system."),
         fill("To choose as many non-overlapping events as possible, sort by ___ time.", "// sort events by ___ time", ["end", "finish"], "Earliest finish first leaves the most room."),
         arrange("Arrange the lines of greedy 'most items within budget'.", ["sort(a.begin(), a.end());", "for (int x : a) {", "    if (total + x > budget) break;", "    total += x;", "    items++;", "}"], "Sort ascending, then take items while they fit."),
-        tf("A greedy algorithm may be fast and still wrong.", true, "Speed does not imply correctness; check with counterexamples."),
+        mc("n = 10^5 events: sort by end time, then one sweep. What is the total running time?", ["O(n log n)", "O(n)", "O(n^2)", "O(2^n)"], 0, "The sort costs O(n log n) and dominates the O(n) sweep."),
       ],
     },
   ],

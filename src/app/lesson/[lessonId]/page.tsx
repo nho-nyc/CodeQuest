@@ -16,7 +16,7 @@ export default async function LessonPage({ params }: { params: Promise<{ lessonI
   try {
     run = await startOrResumeRun(user.id, lessonId);
   } catch (e) {
-    if (e instanceof ServiceError && e.status === 403) redirect("/learn");
+    if (e instanceof ServiceError && e.status === 403) redirect(`/learn?locked=${lessonId}`);
     if (e instanceof ServiceError && e.status === 404) notFound();
     throw e;
   }

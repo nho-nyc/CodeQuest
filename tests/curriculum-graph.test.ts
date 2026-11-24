@@ -119,3 +119,20 @@ describe("prerequisite unlock logic", () => {
     }
   });
 });
+
+import { layoutUnits } from "@/server/services/curriculum-graph";
+describe("skill map layout", () => {
+  it("puts each unit in a column right of all its prerequisites, with no two units sharing a cell", () => {
+    const list = units.map((u) => ({ slug: u.slug, prerequisites: UNIT_META[u.slug]!.prerequisites.map((slug) => ({ slug })) }));
+    const pos = layoutUnits(list);
+    expect(pos.size).toBe(list.length);
+    const cells = new Set<string>();
+    for (const u of list) {
+      const p = pos.get(u.slug)!;
+      expect(cells.has(`${p.col}:${p.row}`), `${u.slug} overlaps`).toBe(false);
+      cells.add(`${p.col}:${p.row}`);
+      for (const q of u.prerequisites) expect(pos.get(q.slug)!.col, `${q.slug} -> ${u.slug}`).toBeLessThan(p.col);
+      expect(p.row).toBeGreaterThanOrEqual(0);
+    }
+  });
+});
