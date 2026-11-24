@@ -1,5 +1,6 @@
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { getDb, schema } from "@/server/db/client";
+import { isLessonUnlockedIn, isUnitMastered, lockedReason, resolveGates, type GraphUnit } from "./curriculum-graph";
 import { SKIP_MIN_POOL, skippedUnitIds } from "./skip";
 
 export type LessonState = "locked" | "available" | "in_progress" | "completed" | "perfected";
@@ -11,7 +12,10 @@ export type PathLesson = {
   summary: string;
   xpReward: number;
   state: LessonState;
+  kind: "lesson" | "assessment" | "checkpoint";
 };
+export type PathPrereq = { slug: string; title: string; done: boolean };
+export type PathPractice = { slug: string; title: string; difficulty: string; solved: boolean };
 export type PathUnit = {
   id: string;
   slug: string;
@@ -27,6 +31,15 @@ export type PathUnit = {
   skipped: boolean;
   /** A skip test can be taken for this unit right now. */
   canSkip: boolean;
+  objectives: string[];
+  prerequisites: PathPrereq[];
+  /** Why the unit cannot be started yet (null when open). */
+  lockedReason: string | null;
+  /** The unit's required assessment (or optional checkpoint), if it has one. */
+  assessment: { lessonId: string; state: LessonState; required: boolean } | null;
+  practice: PathPractice[];
+  /** All required lessons and the assessment are done: dependent units open. */
+  mastered: boolean;
 };
 export type PathWorld = {
   id: string;
@@ -68,6 +81,16 @@ export async function loadCurriculum(): Promise<Curriculum> {
   }));
 }
 
+const asStrings = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []);
+const normKind = (k: string): "lesson" | "assessment" | "checkpoint" => (k === "assessment" || k === "checkpoint" ? k : "lesson");
+
+/** Units of published worlds in curriculum order, shaped for the pure graph logic. */
+export function graphUnits(c: Curriculum): GraphUnit[] {
+  return c
+    .filter((w) => w.world.published)
+    .flatMap((w) => w.units.map(({ unit, lessons }) => ({ id: unit.id, slug: unit.slug, title: unit.title, prerequisites: asStrings(unit.prerequisites), lessons: lessons.map((l) => ({ id: l.id, kind: l.kind })) })));
+}
+
 /** Playable lesson ids in global learning order (published worlds only). */
 export function lessonSequence(c: Curriculum): string[] {
   return c.filter((w) => w.world.published).flatMap((w) => w.units.flatMap((u) => u.lessons.map((l) => l.id)));
@@ -99,14 +122,24 @@ export async function getLearningPath(userId: string): Promise<PathWorld[]> {
   const prog = { ...prog0, completed: withSkips(curriculum, prog0.completed, skipped) };
   const poolRows = await getDb().execute(sql`select l.unit_id, count(*)::int n from lesson_questions q join lessons l on l.id = q.lesson_id where q.deleted_at is null and l.deleted_at is null and l.published group by l.unit_id`);
   const pool = new Map((poolRows.rows as Array<{ unit_id: string; n: number }>).map((r) => [r.unit_id, Number(r.n)]));
-  const seq = lessonSequence(curriculum);
-  const firstOpen = seq.findIndex((id) => !prog.completed.has(id));
+  const graph = graphUnits(curriculum);
+  const gates = resolveGates(graph, prog.completed);
+  const unitTitle = new Map(graph.map((g) => [g.slug, g.title]));
+  const masteredSlug = new Set(graph.filter((g) => isUnitMastered(g, prog.completed)).map((g) => g.slug));
+  const allPractice = [...new Set(curriculum.flatMap((c) => c.units.flatMap((u) => asStrings(u.unit.practice))))];
+  const practiceRows = allPractice.length
+    ? await getDb().select({ slug: schema.problems.slug, title: schema.problems.title, difficulty: schema.problems.difficulty }).from(schema.problems).where(and(inArray(schema.problems.slug, allPractice), eq(schema.problems.published, true), isNull(schema.problems.deletedAt)))
+    : [];
+  const solvedRows = practiceRows.length
+    ? await getDb().select({ slug: schema.problems.slug }).from(schema.userProblemProgress).innerJoin(schema.problems, eq(schema.problems.id, schema.userProblemProgress.problemId)).where(and(eq(schema.userProblemProgress.userId, userId), eq(schema.userProblemProgress.solved, true), inArray(schema.problems.slug, allPractice)))
+    : [];
+  const solved = new Set(solvedRows.map((r) => r.slug));
+  const practiceBySlug = new Map(practiceRows.map((r) => [r.slug, r]));
 
   const stateOf = (lessonId: string): LessonState => {
-    const idx = seq.indexOf(lessonId);
     if (prog.perfected.has(lessonId)) return "perfected";
     if (prog.completed.has(lessonId)) return "completed";
-    if (idx === -1 || (firstOpen !== -1 && idx > firstOpen)) return "locked";
+    if (!isLessonUnlockedIn(graph, prog.completed, lessonId)) return "locked";
     return prog.inProgress.has(lessonId) ? "in_progress" : "available";
   };
 
@@ -119,8 +152,14 @@ export async function getLearningPath(userId: string): Promise<PathWorld[]> {
         summary: l.summary,
         xpReward: l.xpReward,
         state: world.published ? stateOf(l.id) : "locked",
+        kind: normKind(l.kind),
       }));
-      const completed = ls.filter((l) => l.state === "completed" || l.state === "perfected").length;
+      const reqLessons = ls.filter((l) => l.kind !== "checkpoint");
+      const completed = reqLessons.filter((l) => l.state === "completed" || l.state === "perfected").length;
+      const gate = gates.get(unit.id);
+      const g = graph.find((x) => x.id === unit.id)!;
+      const asmt = ls.find((l) => l.kind !== "lesson");
+      const prereqSlugs = gate ? gate.prerequisiteIds.map((id) => graph.find((x) => x.id === id)!.slug) : [];
       return {
         id: unit.id,
         slug: unit.slug,
@@ -129,11 +168,20 @@ export async function getLearningPath(userId: string): Promise<PathWorld[]> {
         icon: unit.icon,
         lessons: ls,
         completed,
-        total: ls.length,
+        total: reqLessons.length,
         xp: ls.reduce((s, l) => s + l.xpReward, 0),
-        state: completed === ls.length && ls.length > 0 ? "completed" : ls.some((l) => l.state !== "locked") ? "unlocked" : "locked",
+        state: completed === reqLessons.length && reqLessons.length > 0 ? "completed" : ls.some((l) => l.state !== "locked") ? "unlocked" : "locked",
         skipped: skipped.has(unit.id),
-        canSkip: world.published && !skipped.has(unit.id) && completed < ls.length && (pool.get(unit.id) ?? 0) >= SKIP_MIN_POOL,
+        canSkip: world.published && !skipped.has(unit.id) && completed < reqLessons.length && (pool.get(unit.id) ?? 0) >= SKIP_MIN_POOL,
+        objectives: asStrings(unit.objectives),
+        prerequisites: prereqSlugs.map((slug) => ({ slug, title: unitTitle.get(slug) ?? slug, done: masteredSlug.has(slug) })),
+        lockedReason: world.published && gate ? lockedReason(graph, gate) : null,
+        assessment: asmt ? { lessonId: asmt.id, state: asmt.state, required: asmt.kind === "assessment" } : null,
+        practice: asStrings(unit.practice).flatMap((s) => {
+          const r = practiceBySlug.get(s);
+          return r ? [{ slug: r.slug, title: r.title, difficulty: r.difficulty, solved: solved.has(r.slug) }] : [];
+        }),
+        mastered: isUnitMastered(g, prog.completed),
       };
     });
     return {
@@ -154,16 +202,13 @@ export async function getLearningPath(userId: string): Promise<PathWorld[]> {
 /** The lesson the learner should do next (in progress first, else first available). */
 export function nextLesson(path: PathWorld[]): PathLesson | null {
   const all = path.flatMap((w) => w.units.flatMap((u) => u.lessons));
-  return all.find((l) => l.state === "in_progress") ?? all.find((l) => l.state === "available") ?? null;
+  return all.find((l) => l.state === "in_progress") ?? all.find((l) => l.state === "available" && l.kind !== "checkpoint") ?? all.find((l) => l.state === "available") ?? null;
 }
 
 export async function isLessonUnlocked(userId: string, lessonId: string): Promise<boolean> {
   const [curriculum, prog, skipped] = await Promise.all([loadCurriculum(), loadUserProgress(userId), skippedUnitIds(userId)]);
   const done = withSkips(curriculum, prog.completed, skipped);
-  const seq = lessonSequence(curriculum);
-  const idx = seq.indexOf(lessonId);
-  if (idx === -1) return false;
-  return seq.slice(0, idx).every((id) => done.has(id));
+  return isLessonUnlockedIn(graphUnits(curriculum), done, lessonId);
 }
 
 export async function lessonsByIds(ids: string[]) {

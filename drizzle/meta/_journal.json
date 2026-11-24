@@ -43,6 +43,13 @@
       "when": 1795170563135,
       "tag": "0005_skip_tests",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1795437588985,
+      "tag": "0006_curriculum_graph",
+      "breakpoints": true
     }
   ]
 }

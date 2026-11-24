@@ -216,3 +216,13 @@ GitHub Pages cannot host this app (it needs a Node server and PostgreSQL). Verce
 4. Deploy. Sign up on the site, then make yourself admin with the SQL in "Phase 5 notes" (run it in the Neon SQL editor).
 
 Notes: Run and Submit are limited to 60 seconds per request on serverless. Rate limits are kept in memory per instance, so on a serverless host they are best effort, not a hard guarantee. The database pool is capped at 3 connections per instance on Vercel. Never put the database string or any key in the repository.
+
+
+## Curriculum architecture (prerequisite graph)
+
+- `src/content/curriculum-meta.ts` declares, per unit, learning **objectives**, **prerequisite units** (slugs) and **practice problems**. They are stored on `units` (migration 0006) by `npm run db:seed`.
+- A unit is **mastered** when all its lessons and its assessment are done. A unit **opens** when every prerequisite unit is mastered (no declared prerequisite = the previous unit). Lessons inside a unit stay sequential. Pure logic: `src/server/services/curriculum-graph.ts`.
+- Lesson kinds: `lesson`, `assessment` (required, last in the unit, gates dependents) and `checkpoint` (optional, never gates).
+- Passing a skip test marks a unit mastered. XP never opens a unit.
+- UI: unit cards (objectives, prerequisites, locked reason, assessment status, practice) on `/learn`, and the prerequisite map on `/learn/map`.
+- Tests: `tests/curriculum-graph.test.ts` (pure), `tests/curriculum-path.test.ts` (real database).

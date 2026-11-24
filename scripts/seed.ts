@@ -5,6 +5,7 @@ import * as schema from "../src/server/db/schema";
 import { WORLDS } from "../src/content";
 import { ACHIEVEMENTS, QUESTS } from "../src/content/gamification";
 import { ROADMAP } from "../src/content/roadmap";
+import { UNIT_META } from "../src/content/curriculum-meta";
 import { loadEnvFiles } from "./load-env";
 
 loadEnvFiles();
@@ -31,18 +32,19 @@ async function main() {
       // Rows edited in the admin CMS are locked: the seed never overwrites them.
       const wId = wRow?.id ?? (await tx.select({ id: worlds.id }).from(worlds).where(eq(worlds.slug, w.slug)))[0]!.id;
       for (const [ui, u] of w.units.entries()) {
+        const meta = UNIT_META[u.slug] ?? { objectives: [], prerequisites: [], practice: [] };
         const [uRow] = await tx
           .insert(units)
-          .values({ worldId: wId, slug: u.slug, title: u.title, description: u.description, icon: u.icon, position: ui + 1, published: true })
-          .onConflictDoUpdate({ target: [units.worldId, units.slug], set: { title: u.title, description: u.description, icon: u.icon, position: ui + 1, published: true, deletedAt: null }, setWhere: eq(units.locked, false) })
+          .values({ worldId: wId, slug: u.slug, title: u.title, description: u.description, icon: u.icon, position: ui + 1, published: true, ...meta })
+          .onConflictDoUpdate({ target: [units.worldId, units.slug], set: { title: u.title, description: u.description, icon: u.icon, position: ui + 1, published: true, deletedAt: null, ...meta }, setWhere: eq(units.locked, false) })
           .returning({ id: units.id });
         const uId = uRow?.id ?? (await tx.select({ id: units.id }).from(units).where(and(eq(units.worldId, wId), eq(units.slug, u.slug))))[0]!.id;
         for (const [li, l] of u.lessons.entries()) {
           nLessons++;
           const [lRow] = await tx
             .insert(lessons)
-            .values({ unitId: uId, slug: l.slug, title: l.title, summary: l.summary, position: li + 1, content: l.content, published: true })
-            .onConflictDoUpdate({ target: [lessons.unitId, lessons.slug], set: { title: l.title, summary: l.summary, position: li + 1, content: l.content, published: true, deletedAt: null }, setWhere: eq(lessons.locked, false) })
+            .values({ unitId: uId, slug: l.slug, title: l.title, summary: l.summary, position: li + 1, content: l.content, kind: l.kind ?? "lesson", published: true })
+            .onConflictDoUpdate({ target: [lessons.unitId, lessons.slug], set: { title: l.title, summary: l.summary, position: li + 1, content: l.content, kind: l.kind ?? "lesson", published: true, deletedAt: null }, setWhere: eq(lessons.locked, false) })
             .returning({ id: lessons.id });
           if (!lRow) continue; // locked in the CMS: keep its edited questions as well
           // Park existing positions out of the way so reordering cannot violate the unique (lesson, position) index.

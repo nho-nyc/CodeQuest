@@ -1,4 +1,4 @@
-import { CheckCircle2, ExternalLink, FastForward } from "lucide-react";
+import { CheckCircle2, ExternalLink, FastForward, Lock, ShieldCheck, Target } from "lucide-react";
 import Link from "next/link";
 import { DynamicIcon } from "@/components/ui/icon";
 import { externalForUnit } from "@/content/external-problems";
@@ -31,6 +31,43 @@ export function UnitSection({ unit, index, color }: { unit: PathUnit; index: num
             {unit.completed}/{unit.total} · {unit.xp} XP
           </span>
         </div>
+        {unit.lockedReason && (
+          <p className="mt-3 flex items-start gap-2 rounded-xl bg-black/20 px-3 py-2 text-sm font-bold">
+            <Lock size={16} className="mt-0.5 shrink-0" /> {unit.lockedReason}
+          </p>
+        )}
+        {unit.prerequisites.length > 0 && (
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-extrabold uppercase">
+            <span className="text-white/80">Needs</span>
+            {unit.prerequisites.map((p) => (
+              <span key={p.slug} className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 ${p.done ? "bg-white text-black" : "bg-black/25"}`}>
+                {p.done ? <CheckCircle2 size={12} /> : <Lock size={12} />} {p.title}
+              </span>
+            ))}
+          </div>
+        )}
+        {unit.objectives.length > 0 && (
+          <details className="mt-3 rounded-xl bg-white/15 px-3 py-2 text-sm">
+            <summary className="flex cursor-pointer items-center gap-2 text-xs font-extrabold uppercase">
+              <Target size={14} /> You will learn to
+            </summary>
+            <ul className="mt-2 list-disc space-y-1 pl-5">
+              {unit.objectives.map((o) => (
+                <li key={o}>{o}</li>
+              ))}
+            </ul>
+          </details>
+        )}
+        {unit.assessment && (
+          <p className="mt-3 inline-flex items-center gap-2 rounded-full bg-white/20 px-3 py-1 text-xs font-extrabold uppercase">
+            <ShieldCheck size={14} />
+            {unit.assessment.state === "completed" || unit.assessment.state === "perfected"
+              ? unit.assessment.required ? "Assessment passed" : "Checkpoint done"
+              : unit.assessment.state === "locked"
+                ? unit.assessment.required ? "Assessment: finish the lessons first" : "Checkpoint unlocks after the lessons"
+                : unit.assessment.required ? "Assessment ready: it unlocks the next units" : "Optional checkpoint ready"}
+          </p>
+        )}
         {unit.skipped && <p className="mt-3 text-xs font-extrabold uppercase text-white/90">Skipped by test. You can still replay any lesson.</p>}
         {unit.canSkip && (
           <Link href={`/learn/skip/${unit.id}`} className="mt-3 inline-flex items-center gap-2 rounded-xl bg-white/20 px-3 py-1.5 text-xs font-extrabold uppercase hover:bg-white/30">
@@ -43,6 +80,20 @@ export function UnitSection({ unit, index, color }: { unit: PathUnit; index: num
           </Link>
         )}
       </div>
+      {unit.practice.length > 0 && (
+        <div className="mt-4 rounded-2xl border-2 border-line p-3">
+          <p className="text-xs font-extrabold uppercase tracking-wide text-muted">Practice for this unit</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {unit.practice.map((p) => (
+              <Link key={p.slug} href={`/practice/${p.slug}`} className="inline-flex items-center gap-1.5 rounded-full border-2 border-line px-3 py-1 text-xs font-bold hover:border-sky">
+                {p.solved && <CheckCircle2 size={13} className="text-brand" aria-label="solved" />}
+                {p.title}
+                <span className="uppercase text-muted">{p.difficulty}</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
       <ol className="mt-8 flex flex-col items-center gap-7 p-0">
         {unit.lessons.map((l, i) => (
           <LessonNode key={l.id} lesson={l} offset={OFFSETS[i % OFFSETS.length]!} index={i} />

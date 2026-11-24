@@ -1,4 +1,4 @@
-import { Check, Crown, Lock, Play, Star } from "lucide-react";
+import { Check, Crown, Lock, Play, ShieldCheck, Star } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/cn";
 import type { PathLesson } from "@/server/services/path";
@@ -20,7 +20,8 @@ const LABEL: Record<PathLesson["state"], string> = {
 const ICON = { locked: Lock, available: Star, in_progress: Play, completed: Check, perfected: Crown } as const;
 
 export function LessonNode({ lesson, offset, index = 0 }: { lesson: PathLesson; offset: number; index?: number }) {
-  const Icon = ICON[lesson.state];
+  const Icon = lesson.kind !== "lesson" && lesson.state !== "completed" && lesson.state !== "perfected" && lesson.state !== "locked" ? ShieldCheck : ICON[lesson.state];
+  const kindLabel = lesson.kind === "assessment" ? "Unit assessment" : lesson.kind === "checkpoint" ? "Optional checkpoint" : null;
   const locked = lesson.state === "locked";
   const body = (
     <>
@@ -35,6 +36,7 @@ export function LessonNode({ lesson, offset, index = 0 }: { lesson: PathLesson; 
         <Icon size={30} fill={lesson.state === "available" || lesson.state === "completed" ? "currentColor" : "none"} strokeWidth={2.5} />
       </span>
       <span className="mt-2 max-w-[11rem] text-center text-sm font-extrabold leading-tight">{lesson.title}</span>
+      {kindLabel && <span className="text-[10px] font-extrabold uppercase tracking-wide text-sky">{kindLabel}</span>}
       <span className="text-[11px] font-bold uppercase tracking-wide text-muted">
         {LABEL[lesson.state]}
         {!locked && lesson.state !== "completed" && lesson.state !== "perfected" ? ` · +${lesson.xpReward} XP` : ""}

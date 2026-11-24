@@ -16,6 +16,8 @@ export type LessonSeed = {
   summary: string;
   content: LessonContent;
   questions: QuestionSeed[];
+  /** "lesson" (default), "assessment" (required unit checkpoint, last) or "checkpoint" (optional review test, last). */
+  kind?: "lesson" | "assessment" | "checkpoint";
 };
 
 export type UnitSeed = { slug: string; title: string; description: string; icon: string; lessons: LessonSeed[] };

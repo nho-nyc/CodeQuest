@@ -129,6 +129,12 @@ export const units = pgTable(
     icon: text("icon").notNull().default("BookOpen"),
     position: integer("position").notNull(),
     published: boolean("published").notNull().default(false),
+    /** What a learner can do after this unit (shown on the Learning Path). */
+    objectives: jsonb("objectives").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    /** Slugs of units that must be completed first. Empty = the previous unit in curriculum order. */
+    prerequisites: jsonb("prerequisites").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    /** Slugs of practice problems that apply this unit's skills. */
+    practice: jsonb("practice").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
     /** Edited in the admin CMS: `npm run db:seed` leaves locked rows alone so edits are never overwritten. */
     locked: boolean("locked").notNull().default(false),
     ...timestamps,
@@ -161,6 +167,8 @@ export const lessons = pgTable(
     position: integer("position").notNull(),
     content: jsonb("content").$type<LessonContent>().notNull(),
     xpReward: integer("xp_reward").notNull().default(20),
+    /** "lesson" or "assessment" (the unit checkpoint, always last in its unit). */
+    kind: text("kind").notNull().default("lesson"),
     published: boolean("published").notNull().default(true),
     /** Edited in the admin CMS: `npm run db:seed` leaves locked rows alone so edits are never overwritten. */
     locked: boolean("locked").notNull().default(false),
