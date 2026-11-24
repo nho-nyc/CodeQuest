@@ -783,3 +783,24 @@ export const skipAttempts = pgTable(
   },
   (t) => [index("skip_user_unit_idx").on(t.userId, t.unitId, t.startedAt)],
 );
+
+/** Skill placement test attempts. Purely advisory: nothing here changes lessons, XP, hearts or unlocks. */
+export type PlacementSkillResult = { skillId: string; correct: number; unknown: number; total: number };
+export const placementAttempts = pgTable(
+  "placement_attempts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    /** The questions drawn for this attempt, in display order. */
+    questionIds: jsonb("question_ids").$type<string[]>().notNull(),
+    /** Which skill each drawn question belongs to (same order as questionIds). */
+    skillIds: jsonb("skill_ids").$type<string[]>().notNull(),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+    /** Per-skill tallies, set on submit. */
+    result: jsonb("result").$type<PlacementSkillResult[]>(),
+  },
+  (t) => [index("placement_user_idx").on(t.userId, t.startedAt)],
+);

@@ -226,3 +226,10 @@ Notes: Run and Submit are limited to 60 seconds per request on serverless. Rate 
 - Passing a skip test marks a unit mastered. XP never opens a unit.
 - UI: unit cards (objectives, prerequisites, locked reason, assessment status, practice) on `/learn`, and the prerequisite map on `/learn/map`.
 - Tests: `tests/curriculum-graph.test.ts` (pure), `tests/curriculum-path.test.ts` (real database).
+
+## Content integrity & placement (notes)
+
+- **Answer shuffle** happens deterministically at content-build time (`src/content/shuffle.ts`), so a question's stored `data.options` and `answer.index` always change together. Grading is index-based on what is stored; there is no runtime remapping.
+- **Seeding** upserts by slug and now *skips lessons whose questions are unchanged* (compared field by field). Re-seeding an unchanged database therefore touches nothing. When a question really changes, `lesson_questions.updated_at` moves, and any in-flight lesson run, skip test or placement attempt that started earlier is invalidated with a `content_updated` (409) response instead of being graded against different options. The client reloads into a fresh attempt. One-time effect of the shuffle deploy: runs that were mid-way through a reshuffled lesson restart once.
+- **Assessments** pass with at most 25% mistakes (minimum 1). They never use hearts; a failed attempt is marked `abandoned` and credits no XP or progress.
+- **Placement test** (`/placement`) is optional and advisory. It writes only to `placement_attempts` (migration `0007`, additive, no data changes). It never unlocks units, marks lessons done, awards XP or touches hearts. Skip tests remain the only way to test out of a unit.

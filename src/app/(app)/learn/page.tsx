@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Hourglass, Map as MapIcon } from "lucide-react";
+import { Compass, Hourglass, Map as MapIcon } from "lucide-react";
 import Link from "next/link";
 import { UnitSection } from "@/components/learning/unit-section";
 import { Card } from "@/components/ui/card";
@@ -27,6 +27,9 @@ export default async function LearnPage({ searchParams }: { searchParams: Promis
       <div className="mt-3 flex flex-wrap items-center gap-3">
         <Link href="/learn/map" className="inline-flex items-center gap-2 rounded-xl border-2 border-line px-3 py-1.5 text-xs font-extrabold uppercase hover:border-sky">
           <MapIcon size={14} /> Skill map
+        </Link>
+        <Link href="/placement" className="inline-flex items-center gap-2 rounded-xl border-2 border-line px-3 py-1.5 text-xs font-extrabold uppercase hover:border-sky">
+          <Compass size={14} /> Not sure where to start?
         </Link>
       </div>
       {lockedUnit && lockedLesson && lockedLesson.state === "locked" && (

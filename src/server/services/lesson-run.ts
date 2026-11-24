@@ -21,6 +21,20 @@ export class ServiceError extends Error {
   }
 }
 
+/**
+ * Answers are graded by option INDEX against the stored question. If a question was edited (or re-shuffled by a
+ * reseed) after a learner received it, their screen and the stored answer could disagree. Content edits therefore
+ * invalidate in-flight runs/tests: they are abandoned and restarted, never graded against changed content.
+ * (`npm run db:seed` skips unchanged questions, so a plain redeploy does not trigger this.)
+ */
+export async function questionsChangedSince(lessonId: string, since: Date): Promise<boolean> {
+  const rows = await getDb()
+    .select({ n: count() })
+    .from(schema.lessonQuestions)
+    .where(and(eq(schema.lessonQuestions.lessonId, lessonId), sql`${schema.lessonQuestions.updatedAt} > ${since.toISOString()}::timestamptz`));
+  return Number(rows[0]?.n ?? 0) > 0;
+}
+
 export const toPublic = (q: typeof schema.lessonQuestions.$inferSelect): PublicQuestion => ({
   id: q.id,
   position: q.position,
@@ -71,6 +85,10 @@ export async function startOrResumeRun(userId: string, lessonId: string): Promis
     .from(schema.lessonRuns)
     .where(and(eq(schema.lessonRuns.userId, userId), eq(schema.lessonRuns.lessonId, lessonId), eq(schema.lessonRuns.status, "in_progress")))
     .limit(1);
+  if (run && (await questionsChangedSince(lessonId, run.startedAt))) {
+    await db.update(schema.lessonRuns).set({ status: "abandoned" }).where(eq(schema.lessonRuns.id, run.id));
+    run = undefined as unknown as typeof run;
+  }
   let resumed = true;
   if (!run) {
     resumed = false;
@@ -140,6 +158,10 @@ export async function answerQuestion(userId: string, runId: string, questionId: 
     .limit(1);
   if (!run) throw new ServiceError("Run not found", 404);
   if (run.status !== "in_progress") throw new ServiceError("This lesson run is already finished", 409);
+  if (await questionsChangedSince(run.lessonId, run.startedAt)) {
+    await db.update(schema.lessonRuns).set({ status: "abandoned" }).where(eq(schema.lessonRuns.id, runId));
+    throw new ServiceError("This lesson was updated while you were working on it. Reload to start fresh.", 409, "content_updated");
+  }
 
   const [q] = await db
     .select()

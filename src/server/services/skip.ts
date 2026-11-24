@@ -101,9 +101,11 @@ export async function startSkipTest(userId: string, unitId: string, now = new Da
     const [open] = await tx.select().from(schema.skipAttempts).where(and(eq(schema.skipAttempts.userId, userId), eq(schema.skipAttempts.unitId, unitId), isNull(schema.skipAttempts.finishedAt))).orderBy(desc(schema.skipAttempts.startedAt)).limit(1);
     if (open && now.getTime() - open.startedAt.getTime() < ATTEMPT_TTL_MS) {
       const qs = open.questionIds.map((id) => byId.get(id)).filter((q): q is Q => !!q);
-      if (qs.length === open.questionIds.length) return { attemptId: open.id, needed: Math.ceil(open.total * SKIP_PASS_RATIO), questions: qs.map(toPublic) };
+      const edited = qs.some((q) => q.updatedAt > open.startedAt);
+      if (qs.length === open.questionIds.length && !edited) return { attemptId: open.id, needed: Math.ceil(open.total * SKIP_PASS_RATIO), questions: qs.map(toPublic) };
     }
-    if (open) await tx.update(schema.skipAttempts).set({ finishedAt: now, score: 0, passed: false }).where(eq(schema.skipAttempts.id, open.id));
+    // An unfinished attempt that is stale or was invalidated by a content edit is discarded (it never counted as a failure).
+    if (open) await tx.delete(schema.skipAttempts).where(eq(schema.skipAttempts.id, open.id));
     const picked = drawQuestions(lessons.map((l) => questions.filter((q) => q.lessonId === l.id)), SKIP_QUESTIONS);
     const [row] = await tx.insert(schema.skipAttempts).values({ userId, unitId, questionIds: picked.map((q) => q.id), total: picked.length, startedAt: now }).returning({ id: schema.skipAttempts.id });
     return { attemptId: row!.id, needed: Math.ceil(picked.length * SKIP_PASS_RATIO), questions: picked.map(toPublic) };
@@ -128,6 +130,10 @@ export async function submitSkipTest(userId: string, attemptId: string, answers:
     if (attempt.finishedAt) throw new ServiceError("This test was already submitted", 409, "already_submitted");
     const qs = await tx.select().from(schema.lessonQuestions).where(inArray(schema.lessonQuestions.id, attempt.questionIds));
     const byId = new Map(qs.map((q) => [q.id, q]));
+    if (qs.some((q) => q.updatedAt > attempt.startedAt)) {
+      // (The stale attempt is replaced by a fresh one the next time the learner starts the test.)
+      throw new ServiceError("This test was updated while you were taking it. Please start it again.", 409, "content_updated");
+    }
     const review: SkipResult["review"] = [];
     let score = 0;
     for (const id of attempt.questionIds) {

@@ -67,6 +67,9 @@ export function LessonPlayer({ run }: { run: RunState }) {
       if (e instanceof ApiError && e.code === "out_of_hearts") {
         setHearts(0);
         setNoHearts(true);
+      } else if (e instanceof ApiError && e.code === "content_updated") {
+        setError(e.message);
+        setTimeout(() => window.location.reload(), 1800);
       } else setError(e instanceof Error ? e.message : "Could not check your answer");
     } finally {
       setBusy(false);

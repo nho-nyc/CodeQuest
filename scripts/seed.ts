@@ -1,5 +1,5 @@
 import { drizzle } from "drizzle-orm/node-postgres";
-import { and, eq, notInArray, sql } from "drizzle-orm";
+import { and, eq, isNull, notInArray, sql } from "drizzle-orm";
 import { Pool } from "pg";
 import * as schema from "../src/server/db/schema";
 import { WORLDS } from "../src/content";
@@ -9,6 +9,11 @@ import { UNIT_META } from "../src/content/curriculum-meta";
 import { loadEnvFiles } from "./load-env";
 
 loadEnvFiles();
+
+/** JSON with sorted keys, so jsonb round-trips compare equal regardless of key order. */
+function stable(v: unknown): string {
+  return JSON.stringify(v, (_k, x) => (x && typeof x === "object" && !Array.isArray(x) ? Object.fromEntries(Object.entries(x as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b))) : x));
+}
 
 /** Idempotent: safe to re-run. Upserts by slug so learner progress (which references ids) is preserved. */
 async function main() {
@@ -47,6 +52,19 @@ async function main() {
             .onConflictDoUpdate({ target: [lessons.unitId, lessons.slug], set: { title: l.title, summary: l.summary, position: li + 1, content: l.content, kind: l.kind ?? "lesson", published: true, deletedAt: null }, setWhere: eq(lessons.locked, false) })
             .returning({ id: lessons.id });
           if (!lRow) continue; // locked in the CMS: keep its edited questions as well
+          // Unchanged content is left completely alone: no writes, so `updated_at` only moves on real edits and
+          // in-progress runs/tests are not invalidated by a redeploy that did not touch their questions.
+          const current = await tx.select().from(lessonQuestions).where(and(eq(lessonQuestions.lessonId, lRow!.id), isNull(lessonQuestions.deletedAt)));
+          const same =
+            current.length === l.questions.length &&
+            l.questions.every((q, qi) => {
+              const row = current.find((c) => c.position === qi + 1);
+              return !!row && stable({ type: row.type, prompt: row.prompt, code: row.code, data: row.data, answer: row.answer, explanation: row.explanation }) === stable({ type: q.type, prompt: q.prompt, code: q.code ?? null, data: q.data, answer: q.answer, explanation: q.explanation });
+            });
+          if (same) {
+            nQuestions += l.questions.length;
+            continue;
+          }
           // Park existing positions out of the way so reordering cannot violate the unique (lesson, position) index.
           await tx.update(lessonQuestions).set({ position: sql`${lessonQuestions.position} + 1000` }).where(eq(lessonQuestions.lessonId, lRow!.id));
           for (const [qi, q] of l.questions.entries()) {

@@ -50,6 +50,13 @@
       "when": 1795437588985,
       "tag": "0006_curriculum_graph",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1795503580798,
+      "tag": "0007_placement_attempts",
+      "breakpoints": true
     }
   ]
 }
