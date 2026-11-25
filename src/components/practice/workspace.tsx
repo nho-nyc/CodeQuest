@@ -13,6 +13,7 @@ import { cn } from "@/lib/cn";
 import type { ProblemDetail, RunResult, SubmissionRow, SubmitResult } from "@/server/services/problems";
 import { Countdown } from "@/components/contest/countdown";
 import { DifficultyBadge } from "./difficulty-badge";
+import { HINT_LEVELS } from "@/content/problems/hints";
 import { RichText } from "./rich-text";
 import { RunPanel, Spinner, SubmitPanel } from "./results-panel";
 import { VERDICT_LABEL, verdictColor } from "./verdict";
@@ -222,12 +223,19 @@ export function ProblemWorkspace({ problem, submissions: initialSubs, contest }:
                     {s.explanation && <p className="mt-2 text-sm text-muted">{s.explanation}</p>}
                   </div>
                 ))}
-                <div className="flex flex-wrap gap-2">
-                  {problem.tags.map((t) => (
-                    <span key={t} className="rounded-full bg-surface-2 px-3 py-1 text-xs font-bold text-muted">
-                      {t}
-                    </span>
-                  ))}
+                <div className="flex flex-col gap-2">
+                  <div className="flex flex-wrap gap-2" aria-label="Skills">
+                    {[...problem.tags].sort((x, y) => Number(y === problem.primarySkill) - Number(x === problem.primarySkill)).map((t) => (
+                      <span key={t} className={cn("rounded-full px-3 py-1 text-xs font-bold", t === problem.primarySkill ? "bg-sky/15 text-sky" : "bg-surface-2 text-muted")} title={t === problem.primarySkill ? "Main skill" : undefined}>
+                        {t}
+                      </span>
+                    ))}
+                  </div>
+                  {problem.prerequisites.length > 0 && (
+                    <p className="text-xs text-muted">
+                      <span className="font-extrabold uppercase">Good to know first:</span> {problem.prerequisites.map((u) => u.title).join(" · ")}
+                    </p>
+                  )}
                 </div>
                 {!contest && (
                 <div className="rounded-2xl border-2 border-line p-4">
@@ -238,7 +246,7 @@ export function ProblemWorkspace({ problem, submissions: initialSubs, contest }:
                   <ol className="mt-3 flex flex-col gap-2">
                     {hints.map((h, i) => (
                       <li key={i} className="rounded-xl bg-gold/10 p-3 text-sm">
-                        <span className="font-extrabold">Hint {i + 1}: </span>
+                        <span className="font-extrabold">Hint {i + 1}{HINT_LEVELS[i] ? ` · ${HINT_LEVELS[i]!.label}` : ""}: </span>
                         {h}
                       </li>
                     ))}
@@ -246,6 +254,7 @@ export function ProblemWorkspace({ problem, submissions: initialSubs, contest }:
                   {hints.length < problem.hintsTotal && (
                     <Button size="sm" variant="outline" onClick={revealHint} className="mt-3">
                       Show hint {hints.length + 1} of {problem.hintsTotal}
+                      {HINT_LEVELS[hints.length] ? ` · ${HINT_LEVELS[hints.length]!.short}` : ""}
                     </Button>
                   )}
                 </div>
@@ -295,6 +304,26 @@ export function ProblemWorkspace({ problem, submissions: initialSubs, contest }:
             )}
             {tab === "editorial" && problem.editorial && (
               <div className="flex flex-col gap-4 text-[15px] leading-relaxed">
+                {problem.insights && (
+                  <div className="rounded-2xl border-2 border-line p-4 text-sm" aria-label="Problem insights">
+                    <p>
+                      <span className="font-extrabold uppercase text-muted">Approach: </span>
+                      {problem.insights.approach}
+                    </p>
+                    <p className="mt-2">
+                      <span className="font-extrabold uppercase text-muted">Expected complexity: </span>
+                      time <code className="font-mono">{problem.insights.timeComplexity}</code>, memory <code className="font-mono">{problem.insights.spaceComplexity}</code>
+                    </p>
+                    <div className="mt-2">
+                      <p className="font-extrabold uppercase text-muted">Common mistakes</p>
+                      <ul className="mt-1 list-disc pl-5">
+                        {problem.insights.commonMistakes.map((x) => (
+                          <li key={x}>{x}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                )}
                 <RichText text={problem.editorial} />
                 {problem.referenceSolution && (
                   <div>

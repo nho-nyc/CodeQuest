@@ -146,7 +146,8 @@ d("admin CMS (real database)", () => {
   });
 
   it("problems: create draft, publish needs hidden tests, upload tests, edit is locked", async () => {
-    const form = { title: "Add Three", statement: "Print a+b+c for three integers.", inputFormat: "Three integers", outputFormat: "One integer", constraints: "|x| <= 1000", difficulty: "newbie", rating: "800", tags: "math, Implementation", timeLimitMs: "1000", memoryLimitMb: "256", sampleInput: "1 2 3", sampleOutput: "6", hint1: "h1", hint2: "h2", hint3: "h3", editorial: "Just add them up.", referenceSolution: "int main(){}", estimatedMinutes: "5" };
+    const form = { title: "Add Three", statement: "Print a+b+c for three integers.", inputFormat: "Three integers", outputFormat: "One integer", constraints: "|x| <= 1000", difficulty: "newbie", rating: "800", tags: "math, Implementation", timeLimitMs: "1000", memoryLimitMb: "256", sampleInput: "1 2 3", sampleOutput: "6", hint1: "Think about what the three numbers have in common", hint2: "Add the numbers one after the other", hint3: "Read a, b and c as 64-bit integers and print the sum", editorial: "Just add them up.", referenceSolution: "int main(){}", estimatedMinutes: "5" };
+    await db().execute(orm.sql`delete from problems where slug in ('add-three', 'add-three-with-metadata')`); // this suite only truncates users, so rows from an earlier run would clash
     const pid = await a.saveProblem(editor, null, form);
     await expect(a.setProblemPublished(editor, pid, true)).rejects.toMatchObject({ status: 409 });
     await expect(a.addTestCases(editor, pid, [{ input: "1 1 1", expected: "" }])).rejects.toMatchObject({ status: 400 });
@@ -154,7 +155,8 @@ d("admin CMS (real database)", () => {
     await a.setProblemPublished(editor, pid, true);
     const tests = await a.listTestCases(editor, pid);
     expect(tests.map((t: any) => t.position)).toEqual([1, 2]);
-    expect(JSON.stringify(tests)).not.toContain("15"); // only previews of inputs, never expected output
+    expect(JSON.stringify(tests)).not.toMatch(/expected/i); // only previews of inputs and output SIZES, never the expected output itself (a plain "15" search is flaky: ids are random uuids)
+    expect(tests.every((t: { inputPreview: string }) => !t.inputPreview.includes("15"))).toBe(true);
     await a.addTestCases(editor, pid, [{ input: "9 9 9\n", expected: "27\n" }], { replace: true });
     expect(await a.listTestCases(editor, pid)).toHaveLength(1);
     await a.saveProblem(editor, pid, { ...form, title: "Add Three Numbers" });
@@ -164,6 +166,20 @@ d("admin CMS (real database)", () => {
     expect(p.published).toBe(false); // saveProblem form does not publish; seed does not touch locked
     await expect(a.saveProblem(editor, null, { ...form, difficulty: "godlike" })).rejects.toMatchObject({ status: 400 });
     await expect(a.saveProblem(editor, null, { ...form, hint2: "" })).rejects.toMatchObject({ status: 400 });
+    // hint structure and teaching metadata are validated, and tags are normalised
+    await expect(a.saveProblem(editor, null, { ...form, hint2: "too short" })).rejects.toMatchObject({ status: 400 });
+    await expect(a.saveProblem(editor, null, { ...form, hint1: "```cpp\nfor (int i = 0; i < n; i++) {}\n```" })).rejects.toMatchObject({ status: 400 });
+    await expect(a.saveProblem(editor, null, { ...form, primarySkill: "math" })).rejects.toMatchObject({ status: 400 }); // half-filled metadata
+    const meta = { primarySkill: "math", approach: "Add the three numbers in a 64-bit integer.", timeComplexity: "O(1)", spaceComplexity: "O(1)", commonMistakes: "Reading the numbers into int and overflowing.", prerequisites: "no-such-unit" };
+    await expect(a.saveProblem(editor, null, { ...form, ...meta })).rejects.toMatchObject({ status: 400 }); // unknown prerequisite unit
+    const withMeta = await a.saveProblem(editor, null, { ...form, ...meta, title: "Add Three With Metadata", prerequisites: "", tags: "Math, dynamic programming, math" });
+    const [saved] = await db().select().from(schema.problems).where(orm.eq(schema.problems.id, withMeta));
+    expect(saved.tags).toEqual(["math", "dp"]);
+    expect(saved.meta).toMatchObject({ primarySkill: "math", timeComplexity: "O(1)", commonMistakes: ["Reading the numbers into int and overflowing."] });
+    expect(saved.meta.prerequisites).toBeUndefined();
+    // blank metadata is fine and stores an empty object
+    const [plain] = await db().select().from(schema.problems).where(orm.eq(schema.problems.id, pid));
+    expect(plain.meta).toEqual({});
   }, 120_000);
 
   it("contests: create, validate problems, lock after participants", async () => {

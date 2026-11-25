@@ -88,17 +88,17 @@ export const UNIT_META: Record<string, UnitMeta> = {
   "prefix-two-pointers": {
     objectives: ["Build a prefix sum array and answer range sums in O(1)", "Use two pointers on a sorted array to find a pair", "Maintain a sliding window of fixed or variable size", "Pick the right technique from the problem statement"],
     prerequisites: ["problem-solving", "vectors"],
-    practice: ["range-sum-queries", "pair-with-given-sum", "best-window-start", "one-sided-values", "closest-pair-sum"],
+    practice: ["range-sum-queries", "pair-with-given-sum", "best-window-start", "one-sided-values", "closest-pair-sum", "kth-char-of-expansion"],
   },
   recursion: {
     objectives: ["Write a recursive function with a base case and a smaller recursive call", "Trace calls and returns on the call stack", "Explain why plain recursive Fibonacci is slow", "Know when recursion is too deep and use a loop instead"],
     prerequisites: ["functions", "problem-solving"],
-    practice: ["three-step-staircase", "pascal-triangle-entry", "kth-char-of-expansion"],
+    practice: ["three-step-staircase", "pascal-triangle-entry"],
   },
   backtracking: {
     objectives: ["Generate all subsets with choose, explore, undo", "Generate permutations with a used array", "Prune branches that cannot lead to an answer", "Judge whether 2^n or n! is feasible for the given limits"],
     prerequisites: ["recursion", "vectors"],
-    practice: ["count-subsets-with-sum-forty", "subsets-hitting-target", "independent-sets-of-size-k"],
+    practice: ["count-subsets-with-sum-forty", "subsets-hitting-target"],
   },
   greedy: {
     objectives: ["Describe a greedy choice and why it can be correct", "Find counterexamples to a greedy rule", "Sort first and sweep once for interval and scheduling problems", "Decide between greedy and DP"],

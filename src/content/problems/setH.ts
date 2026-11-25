@@ -694,8 +694,8 @@ const subsetSumMitm = P({
   constraints: "1 <= n <= 40\n1 <= a_i <= 10^9\n1 <= S <= 4*10^10",
   samples: [{ input: "4 5\n1 2 3 4\n", output: "2\n", explanation: "{1,4} and {2,3}." }, { input: "3 100\n1 2 3\n", output: "0\n" }],
   hints: [
-    "2^40 subsets is far too many, and the sums are too large for a knapsack table. Split the coins into two halves.",
-    "Enumerate all 2^20 subset sums of each half, sort them, and for every left sum count how many right sums equal S minus it.",
+    "2^40 subsets is far too many, and the sums are too large for a knapsack table. How many coins could you still brute-force, and could two such groups be combined?",
+    "Split the coins into two halves. Enumerate all 2^20 subset sums of each half, sort them, and for every left sum count how many right sums equal S minus it.",
     "Use two pointers over the two sorted arrays (or lower/upper bound). The answer can reach C(40,20), so use 64-bit counters.",
   ],
   editorial:

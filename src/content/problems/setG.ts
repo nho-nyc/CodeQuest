@@ -506,8 +506,8 @@ const subsetsTarget = P({
   constraints: "1 <= n <= 200\n1 <= S <= 10000\n1 <= a[i] <= 10000",
   samples: [{ input: "4 5\n1 2 3 4\n", output: "2\n", explanation: "{1,4} and {2,3}." }],
   hints: [
-    "Let dp[s] be the number of subsets so far with sum s. What changes when a new element arrives?",
-    "A new element x lets every subset with sum s - x grow into one with sum s: dp[s] += dp[s - x].",
+    "Listing the subsets is hopeless, but you only need how many reach the target. Add the elements one at a time: what could you count after each element that lets you extend the count to the next one?",
+    "Let dp[s] be the number of subsets so far with sum s. A new element x lets every subset with sum s - x grow into one with sum s: dp[s] += dp[s - x].",
     "Iterate s downwards from S to x so the element is used at most once; start with dp[0] = 1 (the empty subset).",
   ],
   editorial: "0/1 knapsack counting: dp[0] = 1, and for each element x iterate s from S down to x doing dp[s] = (dp[s] + dp[s-x]) mod p. Equal values at different positions are processed separately, so they are counted as different subsets.\n\nComplexity: O(nS).",

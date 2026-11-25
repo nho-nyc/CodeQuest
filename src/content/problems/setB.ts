@@ -211,7 +211,7 @@ const oneSided = P({
   title: "One-Sided Values",
   difficulty: "easy",
   rating: 900,
-  tags: ["two pointers", "sorting", "arrays"],
+  tags: ["two pointers", "arrays"],
   statement:
     "You are given two non-decreasing arrays A and B. A value is called one-sided if it occurs in exactly one of the two arrays (in A or in B, but not in both). Print every one-sided value exactly once, in increasing order.",
   inputFormat: "The first line contains n and m. The second line contains the n elements of A. The third line contains the m elements of B. Both arrays are sorted in non-decreasing order.",
@@ -522,7 +522,7 @@ const equalValuePairs = P({
   title: "Twin Pairs",
   difficulty: "easy",
   rating: 1000,
-  tags: ["counting", "sorting", "arrays"],
+  tags: ["counting", "arrays"],
   statement:
     "Given an array of n integers, count the pairs of positions (i, j) with i < j such that a_i = a_j. Positions matter, not values: the array 5 5 5 has three such pairs.",
   inputFormat: "The first line contains n. The second line contains n integers.",
@@ -1266,8 +1266,8 @@ const exactlyKDistinct = P({
   constraints: "1 <= k <= n <= 99000\n1 <= a_i <= 100000",
   samples: [{ input: "5 2\n1 2 1 2 3\n", output: "7\n" }],
   hints: [
-    "Counting subarrays with at most k distinct values is a straightforward sliding window. How can that be used for exactly k?",
-    "exactly(k) = atMost(k) - atMost(k - 1), because every subarray with at most k distinct values has either exactly k or at most k - 1.",
+    "Counting subarrays with exactly k distinct values directly is awkward, because shrinking a window can skip valid ones. Is there a closely related quantity that a moving window counts easily?",
+    "Let atMost(K) count subarrays with at most K distinct values, a standard sliding window. Then exactly(k) = atMost(k) - atMost(k - 1), because every subarray with at most k distinct values has either exactly k or at most k - 1.",
     "Implement atMost(K) with two pointers and a frequency array: for each right end add r - l + 1 after shrinking until the distinct count is <= K. Use 64-bit totals.",
   ],
   editorial: "Define f(K) as the number of subarrays with at most K distinct values. For each right end r, the valid left ends form the range [l, r] where l is the smallest index keeping the window at <= K distinct values, and l is non-decreasing in r. So f(K) is computed with a frequency array and two pointers in O(n). The answer is f(k) - f(k-1).\n\nComplexity: O(n).",

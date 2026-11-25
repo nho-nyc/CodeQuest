@@ -3,6 +3,7 @@ import { and, eq, notInArray } from "drizzle-orm";
 import { Pool } from "pg";
 import * as schema from "../src/server/db/schema";
 import { PROBLEMS } from "../src/content/problems";
+import { PROBLEM_META } from "../src/content/problems/meta-data";
 import { buildProblem, hasGpp } from "./lib/problem-build";
 import { loadEnvFiles } from "./load-env";
 
@@ -41,6 +42,7 @@ async function main() {
       editorial: p.editorial,
       referenceSolution: p.reference,
       estimatedMinutes: p.estimatedMinutes,
+      meta: PROBLEM_META[p.slug] ?? {},
       published: true,
       deletedAt: null,
     };

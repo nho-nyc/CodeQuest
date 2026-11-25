@@ -83,8 +83,8 @@ export const subarrayCount: ProblemSeed = {
   constraints: "1 <= n <= 2 * 10^5\n-10^9 <= a_i <= 10^9\n-10^14 <= k <= 10^14",
   samples: [{ input: "5 3\n1 2 1 2 1\n", output: "4\n", explanation: "The subarrays at positions (1,2), (2,3), (3,4) and (4,5) all sum to 3." }, { input: "3 0\n0 0 0\n", output: "6\n" }],
   hints: [
-    "A subarray sum is a difference of two prefix sums. What must be true about the two prefix sums when the difference is k?",
-    "For each right end r, count how many earlier prefix sums equal p[r] - k. A map from prefix sum to count does this.",
+    "Fix the right end of a subarray. What would have to be true about everything to its left for the subarray ending here to sum to exactly k? Can you remember that information instead of re-adding elements?",
+    "A subarray sum is a difference of two prefix sums p. For each right end r, count how many earlier prefix sums equal p[r] - k. A map from prefix sum to count does this.",
     "Keep `map<long long,long long> cnt` with cnt[0] = 1. For each element update the running sum s, add cnt[s - k] to the answer, then do cnt[s]++. Use long long: the answer can reach 2 * 10^10. Prefer std::map over unordered_map to avoid hash attacks.",
   ],
   editorial: "Let p_i be prefix sums with p_0 = 0. The subarray (l, r] has sum p_r - p_l, so it equals k exactly when p_l = p_r - k. Iterate r from left to right, and keep a counter of how many times each prefix sum has appeared before; add the count of (p_r - k) to the answer. The answer can reach n(n+1)/2 ~ 2 * 10^10, which needs `long long`.\n\nComplexity: O(n log n) with an ordered map.",

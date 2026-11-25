@@ -22,8 +22,8 @@ const EXPS_M = [8, 4, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1];
 const leapYearCount = P({
   slug: "leap-years-in-range",
   title: "Leap Years in a Range",
-  difficulty: "newbie",
-  rating: 800,
+  difficulty: "easy",
+  rating: 1000,
   tags: ["math", "implementation"],
   statement:
     "In the Gregorian calendar a year is a leap year if it is divisible by 4, except that years divisible by 100 are not leap years, unless they are also divisible by 400. Given two years a and b, count the leap years y with a <= y <= b.",

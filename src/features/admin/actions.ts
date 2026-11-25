@@ -92,6 +92,8 @@ export async function saveProblemAction(f: FormData) {
       difficulty: s(f, "difficulty"), rating: s(f, "rating"), tags: s(f, "tags"), timeLimitMs: s(f, "timeLimitMs"), memoryLimitMb: s(f, "memoryLimitMb"),
       sampleInput: s(f, "sampleInput"), sampleOutput: s(f, "sampleOutput"), hint1: s(f, "hint1"), hint2: s(f, "hint2"), hint3: s(f, "hint3"),
       editorial: s(f, "editorial"), referenceSolution: s(f, "referenceSolution"), estimatedMinutes: s(f, "estimatedMinutes"), published: false,
+      primarySkill: s(f, "primarySkill"), approach: s(f, "approach"), timeComplexity: s(f, "timeComplexity"), spaceComplexity: s(f, "spaceComplexity"),
+      commonMistakes: s(f, "commonMistakes"), prerequisites: s(f, "prerequisites"),
     });
     return `/admin/problems/${newId}`;
   });

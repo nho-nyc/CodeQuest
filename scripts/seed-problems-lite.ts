@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { Pool } from "pg";
 import * as schema from "../src/server/db/schema";
 import { PROBLEMS } from "../src/content/problems";
+import { PROBLEM_META } from "../src/content/problems/meta-data";
 import tests from "../src/content/problems/small-tests.json";
 import { loadEnvFiles } from "./load-env";
 
@@ -29,7 +30,7 @@ async function main() {
     await db.transaction(async (tx) => {
       const [row] = await tx
         .insert(problems)
-        .values({ slug: p.slug, title: p.title, statement: p.statement, inputFormat: p.inputFormat, outputFormat: p.outputFormat, constraints: p.constraints, difficulty: p.difficulty, rating: p.rating, tags: p.tags, timeLimitMs: p.timeLimitMs, memoryLimitMb: p.memoryLimitMb, samples: p.samples, hints: [...p.hints], editorial: p.editorial, referenceSolution: p.reference, estimatedMinutes: p.estimatedMinutes, published: true })
+        .values({ slug: p.slug, title: p.title, statement: p.statement, inputFormat: p.inputFormat, outputFormat: p.outputFormat, constraints: p.constraints, difficulty: p.difficulty, rating: p.rating, tags: p.tags, timeLimitMs: p.timeLimitMs, memoryLimitMb: p.memoryLimitMb, samples: p.samples, hints: [...p.hints], editorial: p.editorial, referenceSolution: p.reference, estimatedMinutes: p.estimatedMinutes, meta: PROBLEM_META[p.slug] ?? {}, published: true })
         .returning({ id: problems.id });
       await tx.insert(problemTestCases).values(list.map((t, i) => ({ problemId: row!.id, position: i + 1, input: t.input, expectedOutput: t.expected, isSample: t.isSample })));
     });

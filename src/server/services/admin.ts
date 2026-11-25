@@ -1,5 +1,8 @@
 import { and, asc, count, desc, eq, ilike, isNull, or, sql } from "drizzle-orm";
 import { buildQuestion, QuestionFormError, type QuestionFormInput } from "@/features/admin/question-form";
+import { buildProblemMeta, type ProblemMetaInput } from "@/features/admin/problem-meta-form";
+import { validateHints } from "@/content/problems/hints";
+import { canonicalTags } from "@/content/problems/tags";
 import { getDb, schema } from "@/server/db/client";
 import type { LessonContent } from "@/server/db/schema";
 import { ServiceError } from "./lesson-run";
@@ -293,7 +296,7 @@ export async function listProblemsAdmin(actor: Actor) {
 export type ProblemForm = {
   title: string; statement: string; inputFormat: string; outputFormat: string; constraints: string; difficulty: string; rating: string; tags: string;
   timeLimitMs: string; memoryLimitMb: string; sampleInput: string; sampleOutput: string; hint1: string; hint2: string; hint3: string; editorial: string; referenceSolution: string; estimatedMinutes: string; slug?: string; published?: boolean;
-};
+} & ProblemMetaInput;
 const DIFFS = ["newbie", "easy", "medium", "hard", "expert"];
 
 export async function saveProblem(actor: Actor, id: string | null, f: ProblemForm): Promise<string> {
@@ -301,6 +304,11 @@ export async function saveProblem(actor: Actor, id: string | null, f: ProblemFor
   if (!DIFFS.includes(f.difficulty)) throw new ServiceError("Unknown difficulty", 400);
   const hints = [f.hint1, f.hint2, f.hint3].map((h) => h.trim());
   if (hints.some((h) => !h)) throw new ServiceError("Give all 3 hints", 400);
+  const hintErrors = validateHints(hints);
+  if (hintErrors.length) throw new ServiceError(hintErrors.join("; "), 400);
+  const tags = canonicalTags(f.tags.split(",").map((t) => t.trim()).filter(Boolean)).slice(0, 8);
+  const { meta, errors: metaErrors } = buildProblemMeta(f, tags);
+  if (metaErrors.length) throw new ServiceError(`Metadata: ${metaErrors.join("; ")}`, 400);
   if (!f.sampleInput.trim() || !f.sampleOutput.trim()) throw new ServiceError("Give a sample input and output", 400);
   const values = {
     title: text(f.title, "Title", 3, 100),
@@ -310,7 +318,7 @@ export async function saveProblem(actor: Actor, id: string | null, f: ProblemFor
     constraints: text(f.constraints, "Constraints", 1, 2000),
     difficulty: f.difficulty as "easy",
     rating: int(f.rating, "Rating", 400, 3500),
-    tags: f.tags.split(",").map((t) => t.trim().toLowerCase()).filter(Boolean).slice(0, 8),
+    tags,
     timeLimitMs: int(f.timeLimitMs, "Time limit", 100, 10000),
     memoryLimitMb: int(f.memoryLimitMb, "Memory limit", 16, 1024),
     samples: [{ input: f.sampleInput.replace(/\s+$/, "") + "\n", output: f.sampleOutput.replace(/\s+$/, "") + "\n" }],
@@ -318,6 +326,7 @@ export async function saveProblem(actor: Actor, id: string | null, f: ProblemFor
     editorial: text(f.editorial, "Editorial", 10, 8000),
     referenceSolution: text(f.referenceSolution, "Reference solution", 10, 20000),
     estimatedMinutes: int(f.estimatedMinutes, "Estimated minutes", 1, 240),
+    meta,
     published: !!f.published,
     locked: true,
   };

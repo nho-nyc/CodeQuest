@@ -334,6 +334,22 @@ export const userActivity = pgTable(
 
 export type ProblemSample = { input: string; output: string; explanation?: string };
 
+/**
+ * Teaching metadata that is not derivable from the other columns. Topics stay in `tags`; difficulty stays in `difficulty`/`rating`.
+ * Every field is optional in the database (old rows hold `{}`); readers must go through `parseProblemMeta`.
+ */
+export type ProblemMetaJson = {
+  /** The main technique: must be one of the problem's tags. */
+  primarySkill?: string;
+  /** One sentence describing the intended approach. Shown only after the learner solves the problem. */
+  approach?: string;
+  timeComplexity?: string;
+  spaceComplexity?: string;
+  commonMistakes?: string[];
+  /** Curriculum unit slugs worth knowing first. When absent they are derived from the tags. */
+  prerequisites?: string[];
+};
+
 export const problems = pgTable(
   "problems",
   {
@@ -358,6 +374,7 @@ export const problems = pgTable(
     /** Shown only after the learner has solved the problem. */
     referenceSolution: text("reference_solution").notNull(),
     estimatedMinutes: integer("estimated_minutes").notNull().default(15),
+    meta: jsonb("meta").$type<ProblemMetaJson>().notNull().default(sql`'{}'::jsonb`),
     published: boolean("published").notNull().default(true),
     /** Edited in the admin CMS: `npm run db:seed` leaves locked rows alone so edits are never overwritten. */
     locked: boolean("locked").notNull().default(false),

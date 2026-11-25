@@ -9,6 +9,8 @@ import { JudgeUnavailableError, type Language } from "@/server/judge/types";
 import { ServiceError } from "./lesson-run";
 import { trackEngagement, type Reward } from "./engagement";
 import { recordActivity } from "./activity";
+import { WORLDS } from "@/content";
+import { parseProblemMeta, prerequisiteUnits } from "@/content/problems/meta";
 import { awardXp } from "./xp";
 
 const DIFFICULTIES = ["newbie", "easy", "medium", "hard", "expert"] as const;
@@ -140,7 +142,15 @@ export type ProblemDetail = {
   judgeAvailable: boolean;
   /** Rule-based suggestions: same topics, close difficulty, unsolved first. Empty inside contests. */
   related: RelatedProblem[];
+  /** The main technique (one of the tags). Null when the problem has no reviewed metadata or inside contests. */
+  primarySkill: string | null;
+  /** Curriculum units worth knowing first. Empty inside contests. */
+  prerequisites: Array<{ slug: string; title: string }>;
+  /** Approach, expected complexity and common mistakes. Only after the learner has solved the problem, and never inside contests. */
+  insights: { approach: string; timeComplexity: string; spaceComplexity: string; commonMistakes: string[] } | null;
 };
+
+const UNIT_TITLES = new Map(WORLDS.flatMap((w) => w.units).map((u) => [u.slug, u.title] as const));
 
 export type RelatedProblem = { slug: string; title: string; difficulty: Difficulty; rating: number; solved: boolean; reason: string };
 
@@ -183,6 +193,7 @@ export async function getProblem(userId: string, slug: string, opts: { forContes
     .from(schema.userProblemProgress)
     .where(and(eq(schema.userProblemProgress.userId, userId), eq(schema.userProblemProgress.problemId, p.id)));
   const solved = prog?.solved ?? false;
+  const meta = parseProblemMeta(p.meta, p.tags);
   return {
     id: p.id,
     slug: p.slug,
@@ -205,6 +216,9 @@ export async function getProblem(userId: string, slug: string, opts: { forContes
     xpReward: (await getXpRules()).problem[p.difficulty] ?? 0,
     judgeAvailable: getJudge() !== null,
     related: opts.forContest ? [] : await getRelatedProblems(userId, p.id, p.tags, p.rating),
+    primarySkill: opts.forContest ? null : meta?.primarySkill ?? null,
+    prerequisites: opts.forContest ? [] : prerequisiteUnits(p.tags, meta).map((slug) => ({ slug, title: UNIT_TITLES.get(slug) ?? slug })),
+    insights: !opts.forContest && solved && meta ? { approach: meta.approach!, timeComplexity: meta.timeComplexity!, spaceComplexity: meta.spaceComplexity!, commonMistakes: meta.commonMistakes! } : null,
   };
 }
 
