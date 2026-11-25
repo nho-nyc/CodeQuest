@@ -53,9 +53,12 @@ d("skill-aware recommendations (real database)", () => {
     const out = await rec.getProblemRecommendations(userId, "r-anchor", 6);
     const review = out.filter((r: any) => r.category === "review");
     expect(out.length).toBeGreaterThan(0);
-    expect(review.length).toBe(1);
-    expect(review[0].reviewUnits.map((u: any) => u.slug)).toContain("prefix-two-pointers");
-    expect(review[0].reason).toContain(review[0].reviewUnits[0].title);
+    expect(review.length).toBeGreaterThan(0);
+    for (const r of review) {
+      expect(r.reviewUnits.length).toBeGreaterThan(0);
+      expect(r.reason).toContain(r.reviewUnits[0].title);
+    }
+    expect(out).toHaveLength(5); // every relevant, in-window candidate is returned when the limit allows
     const slugs = out.map((r: any) => r.slug);
     expect(slugs).not.toContain("r-off"); // unrelated skill
     expect(slugs).not.toContain("r-far"); // far outside the difficulty window

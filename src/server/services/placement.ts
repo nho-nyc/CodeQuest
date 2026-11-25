@@ -118,3 +118,10 @@ export async function latestPlacement(userId: string): Promise<(Pick<PlacementRe
   const skills = diagnose(done.result!, SKILLS);
   return { attemptId: done.id, finishedAt: done.finishedAt!, skills, recommendation: await recommendationFor(userId, skills) };
 }
+
+/** Diagnosis of the latest finished attempt only (no curriculum lookup), for callers that already hold the learning path. */
+export async function latestPlacementSkills(userId: string): Promise<SkillDiagnosis[] | null> {
+  const rows = await getDb().select({ result: schema.placementAttempts.result, finishedAt: schema.placementAttempts.finishedAt }).from(schema.placementAttempts).where(eq(schema.placementAttempts.userId, userId)).orderBy(desc(schema.placementAttempts.startedAt)).limit(10);
+  const done = rows.find((r) => r.finishedAt && r.result);
+  return done ? diagnose(done.result!, SKILLS) : null;
+}

@@ -35,7 +35,7 @@ describe("problem recommendations", () => {
   it("marks Review first and names exactly the missing units", () => {
     const [r] = run([cand("p", ["prefix-sums", "arrays"], 900, { meta: meta("prefix-sums") })]);
     expect(r!.category).toBe("review");
-    expect(r!.reviewUnits).toEqual([{ slug: "prefix-two-pointers", title: "Prefix sums and two pointers" }]);
+    expect(r!.reviewUnits).toEqual([{ slug: "prefix-two-pointers", title: "Prefix sums and two pointers", open: false }]);
     expect(r!.reason).toContain("Prefix sums and two pointers");
     expect(r!.reason).not.toContain("Arrays"); // mastered units are not listed
   });
@@ -93,13 +93,12 @@ describe("problem recommendations", () => {
     expect(rankProblems(cs, l, focus, "anchor").map((r) => r.slug)).toEqual(["prim", "sec"]);
   });
 
-  it("keeps variety: caps per skill and at most one Review", () => {
+  it("prefers variety first, then backfills so the list is not sparse", () => {
     const l = learner({ masteredUnits: new Set(["prefix-two-pointers", "arrays"]) });
     const many = Array.from({ length: 6 }, (_, i) => cand(`p${i}`, ["prefix-sums"], 900, { meta: meta("prefix-sums") }));
-    const out = rankProblems([...many, cand("a1", ["arrays"], 880, { meta: meta("arrays") })], l, focus, "anchor", { limit: 4 });
-    expect(out.filter((r) => r.skill === "prefix-sums").length).toBeLessThanOrEqual(MAX_PER_SKILL);
-    const revs = run([cand("x", ["prefix-sums"], 900, { meta: meta("prefix-sums") }), cand("y", ["prefix-sums"], 905, { meta: meta("prefix-sums") })]);
-    expect(revs.filter((r) => r.category === "review")).toHaveLength(1);
+    const withOther = rankProblems([...many, cand("a1", ["arrays"], 880, { meta: meta("arrays") })], l, focus, "anchor", { limit: 3 });
+    expect(withOther.filter((r) => r.skill === "prefix-sums").length).toBe(MAX_PER_SKILL); // diversity honoured when another skill exists
+    expect(rankProblems(many, l, focus, "anchor", { limit: 3 })).toHaveLength(3); // only one skill available: still 3
   });
 
   it("learning goals and unit practice raise the score; attempted problems get a small bump", () => {

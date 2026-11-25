@@ -9,7 +9,9 @@ import { parseProblemMeta } from "@/content/problems/meta";
 import { focusOfProblem, rankProblems, type Candidate, type Learner, type Rec } from "@/features/learning/problem-recs";
 import { getDb } from "@/server/db/client";
 import { getLearningPath } from "./path";
-import { latestPlacement } from "./placement";
+import { SKILLS } from "@/content/placement";
+import { recommend } from "./placement-logic";
+import { latestPlacementSkills } from "./placement";
 
 const UNFINISHED_CONTEST = sql`exists (select 1 from contest_problems cp join contests c on c.id = cp.contest_id where cp.problem_id = p.id and c.published and now() < c.starts_at + c.duration_min * interval '1 minute')`;
 const UNIT_TITLES = new Map(WORLDS.flatMap((w) => w.units).map((u) => [u.slug, u.title] as const));
@@ -44,8 +46,9 @@ export async function loadLearner(userId: string, solvedRatings: number[]): Prom
   const unitPractice = new Set(playable.filter((u) => open.has(u.slug)).flatMap((u) => u.practice.map((p) => p.slug)));
 
   const goals = new Set<string>();
-  const placement = await latestPlacement(userId).catch(() => null);
-  for (const s of placement?.recommendation.steps ?? []) if (s.action !== "skip-test" && !mastered.has(s.unit)) goals.add(s.unit);
+  const skills = await latestPlacementSkills(userId).catch(() => null);
+  const steps = skills ? recommend(skills, SKILLS, playable.map((u) => ({ id: u.id, slug: u.slug, title: u.title, prerequisites: u.prerequisites.map((p) => p.slug), mastered: u.mastered }))).steps : [];
+  for (const s of steps) if (s.action !== "skip-test" && !mastered.has(s.unit)) goals.add(s.unit);
   if (goals.size === 0) {
     const next = playable.find((u) => !u.mastered && u.state === "unlocked");
     if (next) goals.add(next.slug);
