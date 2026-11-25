@@ -242,3 +242,15 @@ Notes: Run and Submit are limited to 60 seconds per request on serverless. Rate 
 - **Hints.** Every problem has exactly three, labelled 1 Understand, 2 Algorithmic direction, 3 Implementation. `validateHints` enforces the structure (length, distinct, no code in hints 1-2) for the seed bank and the CMS; whether a hint leaks too much still needs a human (see `npm run problems:audit`, which only flags).
 - **CMS.** The problem form has a "Teaching metadata" block. All blank = no metadata; otherwise every field except prerequisites is required and validated, and tags are normalised.
 - **Shipping content changes without re-seeding tests.** `npm run db:sync:problem-meta` (`--dry` to preview) updates only tags, difficulty/rating, hints and metadata of existing, unlocked problems. It never touches statements, test cases, submissions or progress, and skips CMS-edited rows. The full `db:seed:problems` still works and now writes `meta` too.
+
+## Skill-aware problem recommendations
+
+The problem page shows **What to practise next** (up to 3 suggestions). Code: `src/features/learning/problem-recs.ts` (pure ranking), `src/server/services/recommendations.ts` (read-only loader). Suggestions never unlock units, change mastery, award XP, spend hearts or mark anything solved.
+
+**Categories.** *Ready for this*: prerequisites known and mastered, and the problem's main skill is the one being practised. *Review first*: a prerequisite unit is not mastered; the card names those units. *Related practice*: shares a skill, but it is a different main skill or readiness is unknown; it is never described as a prerequisite.
+
+**Ranking** (deterministic, ties break by slug). Hard filters: not the current problem, not solved, within 500 rating of the target (median solved rating + 100, or 800), and sharing a skill with the current problem. Score = relevance (30 main skill / 12 other shared skill) + readiness (20 x mastered prerequisites / all, or 8 if unknown) + difficulty fit (20) + learning goal (10) + practice of an open unit (5) + already attempted (5) + reviewed metadata (4). Selection allows at most 2 per skill and 1 "Review first".
+
+**Metadata reliability.** *explicit* = reviewed `meta` (57 problems); *derived* = no metadata, prerequisites estimated from tags (can say Review, never Ready, and the card says "based on topic tags"); *missing* = nothing mapped, readiness unknown. When nothing qualifies the page shows the older tag-based "Related problems".
+
+Learning goals come from the latest placement result (units still to study) or, without one, the next open unit. Tests: `tests/problem-recs.test.ts`, `tests/problem-recs-db.test.ts`.

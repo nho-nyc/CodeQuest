@@ -259,7 +259,29 @@ export function ProblemWorkspace({ problem, submissions: initialSubs, contest }:
                   )}
                 </div>
                 )}
-                {!contest && problem.related.length > 0 && (
+                {!contest && problem.recommendations.length > 0 && (
+                  <div className="rounded-2xl border-2 border-line p-4" data-testid="recommendations">
+                    <h2 className="font-extrabold">What to practise next</h2>
+                    <p className="mt-1 text-xs text-muted">Suggestions only: they do not unlock anything or change your progress.</p>
+                    <ul className="mt-3 flex flex-col gap-2">
+                      {problem.recommendations.map((r) => (
+                        <li key={r.slug}>
+                          <Link href={`/practice/${r.slug}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl bg-surface-2 p-3 text-sm transition hover:ring-2 hover:ring-sky/50">
+                            <span className="font-extrabold">{r.title}</span>
+                            <DifficultyBadge difficulty={r.difficulty as ProblemDetail["difficulty"]} rating={r.rating} />
+                            <span className={cn("rounded-full px-2 py-0.5 text-xs font-bold", r.category === "ready" ? "bg-brand/15 text-brand-dark dark:text-brand" : r.category === "review" ? "bg-amber-500/15 text-amber-700 dark:text-amber-300" : "bg-sky/15 text-sky")}>
+                              {r.category === "ready" ? "Ready for this" : r.category === "review" ? "Review first" : "Related practice"}
+                            </span>
+                            <span className="text-xs text-muted">{r.skill}</span>
+                            <span className="w-full text-xs text-muted">{r.reason}</span>
+                            {r.reliability !== "explicit" && <span className="w-full text-[11px] text-muted/80">{r.reliability === "derived" ? "Based on topic tags, not reviewed notes." : "Limited information about this problem."}</span>}
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {!contest && problem.recommendations.length === 0 && problem.related.length > 0 && (
                   <div className="rounded-2xl border-2 border-line p-4">
                     <h2 className="font-extrabold">Related problems</h2>
                     <p className="mt-1 text-xs text-muted">Chosen by shared topics and close difficulty. Unsolved ones come first.</p>

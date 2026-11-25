@@ -12,6 +12,8 @@ import { recordActivity } from "./activity";
 import { WORLDS } from "@/content";
 import { parseProblemMeta, prerequisiteUnits } from "@/content/problems/meta";
 import { awardXp } from "./xp";
+import { getProblemRecommendations } from "./recommendations";
+import type { Rec } from "@/features/learning/problem-recs";
 
 const DIFFICULTIES = ["newbie", "easy", "medium", "hard", "expert"] as const;
 export type Difficulty = (typeof DIFFICULTIES)[number];
@@ -142,6 +144,8 @@ export type ProblemDetail = {
   judgeAvailable: boolean;
   /** Rule-based suggestions: same topics, close difficulty, unsolved first. Empty inside contests. */
   related: RelatedProblem[];
+  /** Skill-aware suggestions (ready / review first / related). Empty when there is not enough information; `related` is the fallback. Empty inside contests. */
+  recommendations: Rec[];
   /** The main technique (one of the tags). Null when the problem has no reviewed metadata or inside contests. */
   primarySkill: string | null;
   /** Curriculum units worth knowing first. Empty inside contests. */
@@ -216,6 +220,7 @@ export async function getProblem(userId: string, slug: string, opts: { forContes
     xpReward: (await getXpRules()).problem[p.difficulty] ?? 0,
     judgeAvailable: getJudge() !== null,
     related: opts.forContest ? [] : await getRelatedProblems(userId, p.id, p.tags, p.rating),
+    recommendations: opts.forContest ? [] : await getProblemRecommendations(userId, p.slug).catch(() => []),
     primarySkill: opts.forContest ? null : meta?.primarySkill ?? null,
     prerequisites: opts.forContest ? [] : prerequisiteUnits(p.tags, meta).map((slug) => ({ slug, title: UNIT_TITLES.get(slug) ?? slug })),
     insights: !opts.forContest && solved && meta ? { approach: meta.approach!, timeComplexity: meta.timeComplexity!, spaceComplexity: meta.spaceComplexity!, commonMistakes: meta.commonMistakes! } : null,
