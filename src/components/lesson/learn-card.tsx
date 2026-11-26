@@ -1,9 +1,11 @@
-import { AlertTriangle, Lightbulb, Terminal } from "lucide-react";
+import { AlertTriangle, CirclePlay, Lightbulb, Terminal } from "lucide-react";
+import Link from "next/link";
+import type { VizId } from "@/features/visualizer/registry";
 import { Card } from "@/components/ui/card";
 import type { LessonContent } from "@/server/db/schema";
 import { CodeBlock } from "./code-block";
 
-export function LearnCard({ content, title }: { content: LessonContent; title: string }) {
+export function LearnCard({ content, title, visualizer = null }: { content: LessonContent; title: string; visualizer?: VizId | null }) {
   return (
     <div className="flex flex-col gap-5">
       <div>
@@ -15,6 +17,12 @@ export function LearnCard({ content, title }: { content: LessonContent; title: s
           <Lightbulb className="mt-0.5 shrink-0 text-sky" /> {content.concept}
         </p>
       </Card>
+      {visualizer && (
+        <Link href={`/visualizer?a=${visualizer}`} target="_blank" className="flex items-center gap-3 rounded-2xl border-2 border-sky/40 p-3 text-sm font-extrabold text-sky transition hover:bg-sky/10">
+          <CirclePlay size={22} /> See it step by step in the visualizer
+          <span className="ml-auto text-xs font-bold text-muted">opens in a new tab · no XP</span>
+        </Link>
+      )}
       <div className="flex flex-col gap-3 text-[17px] leading-relaxed">
         {content.explanation.map((p, i) => (
           <p key={i}>{p}</p>

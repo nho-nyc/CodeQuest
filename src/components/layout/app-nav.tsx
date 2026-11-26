@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart3, ShieldCheck, UsersRound, UserPlus, Brain, Code2, Home, Map as MapIcon, Medal, Swords, Target, Trophy, User as UserIcon } from "lucide-react";
+import { BarChart3, ShieldCheck, UsersRound, UserPlus, Brain, CirclePlay, Code2, Home, Map as MapIcon, Medal, Swords, Target, Trophy, User as UserIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/cn";
@@ -9,6 +9,7 @@ const LIVE = [
   { href: "/dashboard", label: "Home", icon: Home },
   { href: "/learn", label: "Learn", icon: MapIcon },
   { href: "/practice", label: "Practice", icon: Code2 },
+  { href: "/visualizer", label: "Visualizer", icon: CirclePlay },
   { href: "/review", label: "Review", icon: Brain },
   { href: "/quests", label: "Quests", icon: Target },
   { href: "/contests", label: "Contests", icon: Swords },

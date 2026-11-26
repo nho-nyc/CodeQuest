@@ -187,7 +187,7 @@ export function LessonPlayer({ run }: { run: RunState }) {
 
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 pb-48 pt-4">
         {phase === "learn" ? (
-          <LearnCard content={run.lesson.content} title={run.lesson.title} />
+          <LearnCard content={run.lesson.content} title={run.lesson.title} visualizer={run.visualizer} />
         ) : current ? (
           <QuestionView key={`${current.id}-${attempt}`} q={current} value={value} onChange={setValue} verdict={feedback && { correct: feedback.correct, correctAnswer: feedback.correctAnswer }} />
         ) : null}

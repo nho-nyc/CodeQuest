@@ -254,3 +254,14 @@ The problem page shows **What to practise next** (up to 3 suggestions). Code: `s
 **Metadata reliability.** *explicit* = reviewed `meta` (57 problems); *derived* = no metadata, prerequisites estimated from tags (can say Review, never Ready, and the card says "based on topic tags"); *missing* = nothing mapped, readiness unknown.
 
 Learning goals come from the latest placement result (units still to study) or, without one, the next open unit. Tests: `tests/problem-recs.test.ts`, `tests/problem-recs-profiles.test.ts`, `tests/problem-recs-db.test.ts`.
+
+## Algorithm visualizer
+
+Page: `/visualizer` (sidebar entry; `?a=two-pointers|sliding-window|stack|queue|bfs` selects one). Code: `src/features/visualizer/` (pure, no React/timers) and `src/components/visualizer/`.
+
+- **Engine** (`engine.ts`): an algorithm turns validated input into a deterministic trace, a list of steps. Each step holds the full state, the C++ line it maps to, and plain text: what happens, why, and what to notice. Playback is a separate reducer (`playerReducer`: next, prev, reset, seek, play, pause, speed, tick). Algorithm code never uses timers or randomness, so traces can be tested without a browser. Traces are capped at 300 steps.
+- **Algorithms**: `two-pointers.ts`, `sliding-window.ts`, `containers.ts` (stack and queue), `bfs.ts` (adjacency list), registered in `registry.ts` with input fields, code listing, explanation text and complexity.
+- **Safety**: it does not run user code, calls no API and writes nothing to the database. Viewing it gives no XP, hearts or progress. Inputs are bounded (arrays of 2-12 or 2-14 numbers, 20 operations, 10 stored values, 8 vertices, 14 edges).
+- **Lessons**: the lessons `two-pointers`, `sliding-window`, `stack`, `queue` and `bfs` show a plain "See it step by step" link (`VISUALIZER_BY_LESSON`, keyed by lesson slug; a test checks the slugs are unique). Mastery and prerequisite logic is unchanged.
+- **Accessibility**: the controls are labelled buttons, there is a keyboard shortcut set (arrow keys, Home, End), the explanation is an `aria-live` region, the current code line uses `aria-current`, and transitions are disabled under `prefers-reduced-motion` (global rule in `globals.css`). Playback never starts by itself.
+- Tests: `tests/visualizer.test.ts`.

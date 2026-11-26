@@ -10,6 +10,7 @@ import { scheduleFirstReview } from "./reviews";
 import { changeHearts, getHearts, type HeartsView } from "./hearts";
 import { isLessonUnlocked } from "./path";
 import { awardXp } from "./xp";
+import { VISUALIZER_BY_LESSON, type VizId } from "@/features/visualizer/registry";
 
 export class ServiceError extends Error {
   constructor(
@@ -55,6 +56,8 @@ async function activeQuestions(lessonId: string) {
 
 export type RunState = {
   runId: string;
+  /** Visualizer that illustrates this lesson (a plain link: opening it changes nothing). */
+  visualizer: VizId | null;
   lesson: { id: string; title: string; xpReward: number; content: typeof schema.lessons.$inferSelect["content"] };
   total: number;
   mistakes: number;
@@ -121,6 +124,7 @@ export async function startOrResumeRun(userId: string, lessonId: string): Promis
 
   return {
     runId: run.id,
+    visualizer: VISUALIZER_BY_LESSON[lesson.slug] ?? null,
     lesson: { id: lesson.id, title: lesson.title, xpReward: lesson.xpReward, content: lesson.content },
     total: questions.length,
     mistakes: run.mistakes,
