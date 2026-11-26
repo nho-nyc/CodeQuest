@@ -1,12 +1,11 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, Pause, Play, RotateCcw } from "lucide-react";
-import { useCallback, useEffect, useMemo, useReducer, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { atEnd, delayFor, initialPlayer, playerReducer, SPEEDS, type Speed } from "@/features/visualizer/engine";
 import { ALGORITHMS, ALGORITHM_BY_ID, type VizId, type VizState } from "@/features/visualizer/registry";
 import { cn } from "@/lib/cn";
+import { PlaybackControls, playbackKeys, usePlayer } from "./playback";
 import { ContainerStage, GraphStage, SlidingWindowStage, TwoPointersStage } from "./stages";
 
 function Stage({ s }: { s: VizState }) {
@@ -34,17 +33,7 @@ export function Visualizer({ initial }: { initial: VizId }) {
   const run = useMemo(() => algo.run({ ...algo.defaults, ...applied[id] }), [algo, applied, id]);
   const [error, setError] = useState<string[] | null>(null);
   const steps = run.ok ? run.steps : [];
-  const [player, dispatch] = useReducer(playerReducer, steps.length, (n: number) => initialPlayer(n));
-
-  useEffect(() => {
-    dispatch({ type: "load", total: Math.max(1, steps.length) });
-  }, [id, run]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    if (!player.playing) return;
-    const t = window.setTimeout(() => dispatch({ type: "tick" }), delayFor(player.speed));
-    return () => window.clearTimeout(t);
-  }, [player.playing, player.index, player.speed]);
+  const [player, dispatch] = usePlayer(Math.max(1, steps.length), run);
 
   const step = steps[Math.min(player.index, Math.max(0, steps.length - 1))];
 
@@ -69,19 +58,8 @@ export function Visualizer({ initial }: { initial: VizId }) {
     setError(null);
   }
 
-  function onKey(e: React.KeyboardEvent) {
-    const t = e.target as HTMLElement;
-    if (["INPUT", "TEXTAREA", "SELECT"].includes(t.tagName) && t.getAttribute("type") !== "range") return;
-    if (e.key === "ArrowRight") dispatch({ type: "next" });
-    else if (e.key === "ArrowLeft") dispatch({ type: "prev" });
-    else if (e.key === "Home") dispatch({ type: "reset" });
-    else if (e.key === "End") dispatch({ type: "seek", index: steps.length - 1 });
-    else return;
-    e.preventDefault();
-  }
-
   return (
-    <div className="flex flex-col gap-5" onKeyDown={onKey}>
+    <div className="flex flex-col gap-5" onKeyDown={(e) => playbackKeys(e, dispatch, steps.length)}>
       <div>
         <h1 className="text-3xl font-black">Algorithm visualizer</h1>
         <p className="mt-1 text-muted">Step through an algorithm and watch its state change. Nothing here affects your XP, hearts or progress.</p>
@@ -148,37 +126,7 @@ export function Visualizer({ initial }: { initial: VizId }) {
               {step ? <Stage s={step.state} /> : <p className="text-muted">Fix the input above to see the visualization.</p>}
             </div>
             <div className="mt-5 border-t-2 border-line pt-4">
-              <div className="flex items-center gap-3">
-                <span className="w-24 shrink-0 text-sm font-extrabold" data-testid="progress-label" aria-live="off">
-                  Step {player.index + 1} / {steps.length}
-                </span>
-                <input type="range" min={0} max={Math.max(0, steps.length - 1)} value={player.index} onChange={(e) => dispatch({ type: "seek", index: Number(e.target.value) })} aria-label="Step" aria-valuetext={`Step ${player.index + 1} of ${steps.length}`} className="h-2 w-full min-w-0 accent-[var(--color-sky)]" />
-              </div>
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <Button size="sm" variant="outline" onClick={() => dispatch({ type: "reset" })} aria-label="Reset to the first step">
-                  <RotateCcw size={16} /> Reset
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => dispatch({ type: "prev" })} disabled={player.index === 0} aria-label="Previous step">
-                  <ChevronLeft size={18} /> Prev
-                </Button>
-                <Button size="sm" variant="blue" onClick={() => dispatch({ type: "toggle" })} disabled={steps.length < 2} aria-label={player.playing ? "Pause" : atEnd(player) && steps.length > 1 ? "Replay" : "Play"} aria-pressed={player.playing}>
-                  {player.playing ? <Pause size={16} /> : <Play size={16} />} {player.playing ? "Pause" : atEnd(player) && steps.length > 1 ? "Replay" : "Play"}
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => dispatch({ type: "next" })} disabled={atEnd(player)} aria-label="Next step">
-                  Next <ChevronRight size={18} />
-                </Button>
-                <label className="ml-auto flex items-center gap-2 text-sm font-bold">
-                  Speed
-                  <select value={player.speed} onChange={(e) => dispatch({ type: "speed", speed: Number(e.target.value) as Speed })} className="rounded-xl border-2 border-line bg-surface px-2 py-1.5 text-sm font-bold">
-                    {SPEEDS.map((s) => (
-                      <option key={s} value={s}>
-                        {s}x
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-              <p className="mt-2 text-xs text-muted">Keyboard: left and right arrows step, Home resets, End jumps to the last step.</p>
+              <PlaybackControls player={player} dispatch={dispatch} total={steps.length} />
             </div>
           </Card>
         </div>

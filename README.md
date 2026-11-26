@@ -265,3 +265,15 @@ Page: `/visualizer` (sidebar entry; `?a=two-pointers|sliding-window|stack|queue|
 - **Lessons**: the lessons `two-pointers`, `sliding-window`, `stack`, `queue` and `bfs` show a plain "See it step by step" link (`VISUALIZER_BY_LESSON`, keyed by lesson slug; a test checks the slugs are unique). Mastery and prerequisite logic is unchanged.
 - **Accessibility**: the controls are labelled buttons, there is a keyboard shortcut set (arrow keys, Home, End), the explanation is an `aria-live` region, the current code line uses `aria-current`, and transitions are disabled under `prefers-reduced-motion` (global rule in `globals.css`). Playback never starts by itself.
 - Tests: `tests/visualizer.test.ts`.
+
+## Counterexample Lab (Phase 4)
+
+`/counterexample-lab` teaches why plausible algorithms fail. Four challenges, one failure type each: a greedy failure (coin change), a boundary failure (all-negative maximum subarray), an incorrect two-pointers assumption (pair sum on an unsorted array) and an incorrect sliding-window assumption (negative numbers break monotonicity).
+
+Each investigation runs Predict, Experiment, Find the failure, Understand, Repair the reasoning. It is a pure state machine (`src/features/lab/investigation.ts`); the counterexample cannot be revealed until the learner has predicted and tried an input (or taken a hint).
+
+- **Deterministic discovery** (`discover` in `src/features/lab/challenge.ts`): walks a bounded, ordered input space and returns the first input where the flawed implementation differs from an independent reference (DP / brute force). No randomness, no AI. The claim shown to learners is limited to the searched space; minimality is never claimed beyond it.
+- **No arbitrary code runs.** The flawed algorithms are TypeScript mirrors of the shown C++; learners only edit validated, size-limited inputs.
+- **Reuse**: traces are `Step`s from the visualizer engine, played by the shared `usePlayer`/`PlaybackControls` (`src/components/visualizer/playback.tsx`), and rendered by the existing stages plus `src/components/lab/lab-stages.tsx`.
+- **Read-only**: no XP, hearts, mastery, unlocks, solved status or Judge0 submissions; no database access or schema change (guarded by a test).
+- Three progressive hints per challenge: what kind of input to try, which assumption to doubt, and how to repair the reasoning.

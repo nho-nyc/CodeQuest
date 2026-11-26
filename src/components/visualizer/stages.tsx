@@ -4,9 +4,9 @@ import type { ContainerState } from "@/features/visualizer/containers";
 import type { SlidingWindowState } from "@/features/visualizer/sliding-window";
 import type { TwoPointersState } from "@/features/visualizer/two-pointers";
 
-const cell = "flex aspect-square min-w-0 items-center justify-center rounded-xl border-2 text-sm font-black transition-colors duration-300 sm:text-lg";
+export const cell = "flex aspect-square min-w-0 items-center justify-center rounded-xl border-2 text-sm font-black transition-colors duration-300 sm:text-lg";
 
-function ArrayRow({ arr, className, children }: { arr: number[]; className?: (i: number) => string; children?: React.ReactNode }) {
+export function ArrayRow({ arr, className, children }: { arr: number[]; className?: (i: number) => string; children?: React.ReactNode }) {
   return (
     <div className="grid gap-1.5 sm:gap-2" style={{ gridTemplateColumns: `repeat(${arr.length}, minmax(0, 1fr))` }}>
       {arr.map((v, i) => (
@@ -20,7 +20,7 @@ function ArrayRow({ arr, className, children }: { arr: number[]; className?: (i:
   );
 }
 
-function Chip({ children, tone = "plain" }: { children: React.ReactNode; tone?: "plain" | "good" | "warn" | "info" }) {
+export function Chip({ children, tone = "plain" }: { children: React.ReactNode; tone?: "plain" | "good" | "warn" | "info" }) {
   return (
     <span className={cn("rounded-xl border-2 px-3 py-1.5 text-sm font-extrabold", tone === "good" && "border-brand bg-brand/10 text-brand-dark dark:text-brand", tone === "warn" && "border-gold-dark bg-gold/15", tone === "info" && "border-sky bg-sky/10 text-sky", tone === "plain" && "border-line bg-surface-2")}>{children}</span>
   );
