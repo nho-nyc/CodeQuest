@@ -277,3 +277,14 @@ Each investigation runs Predict, Experiment, Find the failure, Understand, Repai
 - **Reuse**: traces are `Step`s from the visualizer engine, played by the shared `usePlayer`/`PlaybackControls` (`src/components/visualizer/playback.tsx`), and rendered by the existing stages plus `src/components/lab/lab-stages.tsx`.
 - **Read-only**: no XP, hearts, mastery, unlocks, solved status or Judge0 submissions; no database access or schema change (guarded by a test).
 - Three progressive hints per challenge: what kind of input to try, which assumption to doubt, and how to repair the reasoning.
+
+## Algorithm Repair Workshop (Phase 5)
+
+`/repair-workshop` gives learners an intentionally flawed C++ program (the same four flaws as the Counterexample Lab: greedy coins, all-negative maximum subarray, two pointers on unsorted data, sliding window with negatives). The learner predicts, runs the visible tests, uses up to three hints, edits the code in the existing Monaco editor, and submits for verification. Reflection (what was wrong, why, what changed, the edge case, complexity, where to reinforce it) appears only after an Accepted verdict or an explicit reveal.
+
+- **Judging reuses the existing Judge0 path** (`getJudge`, the shared verdict helpers). Nothing runs on the app server; without `JUDGE0_URL` Run and Submit report that the judge is unavailable.
+- **Run** judges the visible samples and shows input, expected and actual output. **Submit** judges the samples plus hidden tests; the response contains only counts and the kind of the first hidden failure, never a hidden input or output.
+- **Public vs server-only content**: `src/features/repair/challenges.ts` (statement, flawed code, samples) may reach the browser. `src/server/repair/secret.ts` (hidden tests, independent references, hints, reflections, reference C++) is only used by the API routes, one request at a time, and a test fails if client code imports it.
+- **Hidden tests** are generated deterministically from fixed seeds; expected outputs come from TypeScript references written differently from the flawed programs, and the reference C++ solutions are validated against them through the Judge0 protocol in `tests/repair.test.ts`.
+- **Protections**: authenticated routes, per-user rate limits (Run 20/min, Submit 8/min, hints 60/min, reveal 10/min), 64 KB source limit, 2 s / 256 MB limits.
+- **No progression effects, no database**: the feature has no tables, XP, hearts, mastery or solved-status changes, and a failed or successful submission records nothing. Completion rewards are deliberately deferred: tracking completion safely needs a schema change.

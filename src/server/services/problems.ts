@@ -283,19 +283,19 @@ export async function revealHint(userId: string, slug: string, level: number): P
 
 // ───────────────────────── run / submit ─────────────────────────
 
-function validateSource(source: unknown, language: unknown): { source: string; language: Language } {
+export function validateSource(source: unknown, language: unknown): { source: string; language: Language } {
   if (typeof source !== "string" || source.trim().length === 0) throw new ServiceError("Write some code first", 400);
   if (Buffer.byteLength(source, "utf8") > MAX_SOURCE_BYTES) throw new ServiceError("Source code is too large (64 KB max)", 413);
   if (language !== "cpp17" && language !== "cpp20") throw new ServiceError("Unsupported language", 400);
   return { source, language };
 }
 
-function requireJudge() {
+export function requireJudge() {
   const judge = getJudge();
   if (!judge) throw new ServiceError("The code judge is not configured on this server, so code cannot be run or submitted yet.", 503);
   return judge;
 }
-async function withJudge<T>(fn: () => Promise<T>): Promise<T> {
+export async function withJudge<T>(fn: () => Promise<T>): Promise<T> {
   try {
     return await fn();
   } catch (e) {

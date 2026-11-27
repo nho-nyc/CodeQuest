@@ -13,20 +13,35 @@ type Job = { done: boolean; result?: Record<string, unknown> };
 const b64 = (s: string) => Buffer.from(s, "utf8").toString("base64");
 const unb64 = (s: string) => Buffer.from(s ?? "", "base64").toString("utf8");
 
+// One compile per distinct program: a submission runs the same source on many inputs. Compiles are shared in flight.
+const compiled = new Map<string, Promise<{ dir: string; bin: string; status: number | null; stderr: string }>>();
+function compileOnce(source: string, opts: string[]) {
+  const key = `${opts.join(" ")}\n${source}`;
+  let p = compiled.get(key);
+  if (!p) {
+    p = (async () => {
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), "fj0-"));
+      const src = path.join(dir, "main.cpp");
+      const bin = path.join(dir, "main");
+      fs.writeFileSync(src, source);
+      // Async on purpose: a synchronous compile would block the event loop and delay the run timers of other jobs.
+      const c = await new Promise<{ status: number | null; stderr: string }>((resolve) => {
+        const gpp = spawn("g++", [...opts, "-o", bin, src]);
+        let stderr = "";
+        gpp.stderr.on("data", (d) => (stderr += d));
+        gpp.on("close", (status) => resolve({ status, stderr }));
+      });
+      return { dir, bin, ...c };
+    })();
+    compiled.set(key, p);
+  }
+  return p;
+}
+
 async function execute(sub: Record<string, string | number>): Promise<Record<string, unknown>> {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "fj0-"));
-  try {
-    const src = path.join(dir, "main.cpp");
-    const bin = path.join(dir, "main");
-    fs.writeFileSync(src, unb64(sub.source_code as string));
+  {
     const opts = String(sub.compiler_options ?? "-std=c++17").split(/\s+/).filter(Boolean);
-    // Async on purpose: a synchronous compile would block the event loop and delay the run timers of other jobs.
-    const c = await new Promise<{ status: number | null; stderr: string }>((resolve) => {
-      const gpp = spawn("g++", [...opts, "-o", bin, src]);
-      let stderr = "";
-      gpp.stderr.on("data", (d) => (stderr += d));
-      gpp.on("close", (status) => resolve({ status, stderr }));
-    });
+    const { bin, ...c } = await compileOnce(unb64(sub.source_code as string), opts);
     if (c.status !== 0) return { status: { id: 6, description: "Compilation Error" }, compile_output: b64(c.stderr), stdout: null, stderr: null, message: null, time: null, memory: null };
     const limitMs = Math.round(Number(sub.cpu_time_limit ?? 1) * 1000);
     return await new Promise((resolve) => {
@@ -56,8 +71,6 @@ async function execute(sub: Record<string, string | number>): Promise<Record<str
         resolve({ status: { id, description: desc }, stdout: b64(out), stderr: b64(err), compile_output: null, message: null, time, memory: 1024 });
       });
     });
-  } finally {
-    fs.rmSync(dir, { recursive: true, force: true });
   }
 }
 
@@ -111,6 +124,13 @@ export async function startFakeJudge0(): Promise<FakeJudge0> {
   await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
   const port = (server.address() as { port: number }).port;
   handle.url = `http://127.0.0.1:${port}`;
-  handle.close = () => new Promise((r) => server.close(() => r()));
+  handle.close = () =>
+    new Promise((r) =>
+      server.close(() => {
+        for (const p of compiled.values()) void p.then((c) => fs.rmSync(c.dir, { recursive: true, force: true }));
+        compiled.clear();
+        r();
+      }),
+    );
   return handle;
 }
