@@ -12,6 +12,6 @@ export async function POST(req: Request, ctx: { params: Promise<{ slug: string }
       const b = body.parse(await req.json());
       return runSamples(user.id, slug, b.source, b.language, b.customInput);
     },
-    { limit: 20, bucket: "run" },
+    { limit: 20, bucket: "run", shared: true },
   );
 }

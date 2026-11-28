@@ -26,7 +26,10 @@ export interface Judge {
 }
 
 export class JudgeUnavailableError extends Error {
-  constructor(message = "The code judge is not available right now.") {
-    super(message);
+  /** Operational detail for server logs only. It is never part of `message`, which is shown to learners. */
+  readonly detail: string;
+  constructor(detail = "unavailable") {
+    super("The code judge is not available right now. Please try again in a moment.");
+    this.detail = detail;
   }
 }

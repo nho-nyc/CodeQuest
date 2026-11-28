@@ -291,7 +291,14 @@ export function validateSource(source: unknown, language: unknown): { source: st
 }
 
 export function requireJudge() {
-  const judge = getJudge();
+  let judge: ReturnType<typeof getJudge>;
+  try {
+    judge = getJudge();
+  } catch (e) {
+    // A bad JUDGE0_* value is an operator problem: say so in the logs (names only, no values) and show learners a plain message.
+    console.error("[judge] configuration is invalid:", e instanceof Error ? e.message.replace(/https?:\/\/\S+/g, "<url>").slice(0, 200) : "unknown");
+    throw new ServiceError("The code judge is misconfigured on this server, so code cannot be run or submitted right now.", 503);
+  }
   if (!judge) throw new ServiceError("The code judge is not configured on this server, so code cannot be run or submitted yet.", 503);
   return judge;
 }
@@ -299,7 +306,10 @@ export async function withJudge<T>(fn: () => Promise<T>): Promise<T> {
   try {
     return await fn();
   } catch (e) {
-    if (e instanceof JudgeUnavailableError) throw new ServiceError(e.message, 503);
+    if (e instanceof JudgeUnavailableError) {
+      console.warn(`[judge] ${e.detail}`);
+      throw new ServiceError(e.message, 503);
+    }
     throw e;
   }
 }

@@ -268,7 +268,7 @@ int main() {
 export const SECRETS: Record<string, Secret> = {
   "greedy-coins": {
     hints: [
-      "Run the samples and look at the one that fails. Then try small coin sets of your own where a big coin looks attractive but is not the best first choice.",
+      "Run the samples and look at the one that fails. Then work a few small coin sets out by hand: is the biggest coin that fits always the best first choice?",
       "The code assumes that taking the largest coin that fits is always part of a best answer. Is that true for the coins 1, 3 and 4 and the amount 6?",
       "Stop deciding by one coin at a time. Define dp[s] as the fewest coins that make exactly s, and build it from smaller amounts: dp[s] is the best of dp[s - c] + 1 over every coin c that fits.",
     ],
@@ -278,7 +278,7 @@ export const SECRETS: Record<string, Secret> = {
       whatChanged: "Instead of committing to one coin, the repair computes the best answer for every amount from 0 to m, each from smaller amounts: dp[s] = min over coins c of dp[s - c] + 1.",
       edgeCase: "Coin sets where the largest coin is not part of the best answer, such as 1, 3, 4 with amount 6, and amounts that cannot be made at all.",
       complexity: "O(n · m) time and O(m) memory. With n ≤ 50 and m ≤ 10 000 that is at most half a million steps.",
-      reinforce: "Greedy Algorithms (when a greedy choice is provably safe) and Dynamic Programming: First Steps (building answers from smaller subproblems).",
+      reinforce: "The lesson 'The Greedy Choice (and When It Fails)' shows when a greedy choice is safe. 'Tabulation: Fill a Table Bottom-Up' shows how to build answers from smaller amounts.",
     },
     solution: COINS_SOLUTION,
     hidden: coinsHidden,
@@ -286,7 +286,7 @@ export const SECRETS: Record<string, Secret> = {
   },
   "max-subarray-boundary": {
     hints: [
-      "Run the samples and find the one that fails. Which kind of array is it? Test the smallest arrays and arrays made of one kind of value.",
+      "Run the samples and find the one that fails. Which kind of array is it? Think about the smallest arrays, and arrays made of one kind of value.",
       "Look at the two places the code uses 0. Is 0 always the sum of a block the problem allows? The problem says the block must be non-empty.",
       "Start best and cur from the first element instead of 0, then for each next element let cur choose between starting fresh at a[i] and extending the block: cur = max(a[i], cur + a[i]).",
     ],
@@ -296,7 +296,7 @@ export const SECRETS: Record<string, Secret> = {
       whatChanged: "The answer and running sum now start from the first element, and each step chooses between starting a new block at a[i] and extending the current one.",
       edgeCase: "An array of only negative numbers, and an array with a single negative element.",
       complexity: "O(n) time and O(1) extra memory beyond the input. Sums reach 10^14, so long long is required.",
-      reinforce: "Dynamic Programming: First Steps (the best block ending at each position builds on the previous one).",
+      reinforce: "'Prefix Sums: Range Sums in O(1)' covers sums of blocks. 'Tabulation: Fill a Table Bottom-Up' covers building each answer from the previous one, which is what the repaired loop does.",
     },
     solution: KADANE_SOLUTION,
     hidden: stretchHidden,
@@ -305,16 +305,16 @@ export const SECRETS: Record<string, Secret> = {
   "two-pointers-unsorted": {
     hints: [
       "Run the samples and see which one fails. Look at the order of the numbers in that input compared with the ones that pass.",
-      "Moving the left pointer up because the sum is too small only makes sense if the numbers to its right are bigger. What does the method assume about the order of the array?",
+      "When a[l] + a[r] is too small, the code throws a[l] away for good. That is only safe if every other number still in range is at most a[r]. What does that need from the order of the array?",
       "Make the assumption true before using the pointers: sort the array first. (Another correct approach remembers the numbers seen so far in a set.) Check what that does to the running time.",
     ],
     reflection: {
       wasWrong: "Two pointers was applied to an array in arbitrary order.",
-      whyFailed: "Moving a pointer is justified because in a sorted array every element to its right is at least as big. In an unsorted array, a[l] + a[r] being too small says nothing about the numbers beside l, so a pointer move can throw away an index that was part of the answer.",
+      whyFailed: "When a[l] + a[r] is too small, the code drops a[l] for good. In a sorted array that is safe: every number still in range is at most a[r], so a[l] plus any of them is also too small. In an unsorted array a bigger partner for a[l] can sit anywhere in the range, so the move can throw away a number that belongs to the answer.",
       whatChanged: "The repair sorts the array first, which makes each pointer move provably safe. Only whether a pair exists is asked, so losing the original positions does not matter.",
-      edgeCase: "An unsorted array with a valid pair that the pointers skip over, duplicates such as 5 and 5, and sums above 2^31.",
-      complexity: "Sorting is O(n log n), the scan is O(n). A hash set is O(n) on average. Sums need long long.",
-      reinforce: "Two Pointers (preconditions and invariants). The Algorithm Visualizer shows the pointer moves step by step.",
+      edgeCase: "An unsorted array with a valid pair that the pointers skip over (such as 1, 3, 2 with target 4), two equal numbers at different positions (5 and 5), and one number that would need to be used twice (a single 5 with target 10, which is NO).",
+      complexity: "Sorting is O(n log n) and the scan is O(n), so O(n log n) overall. A hash set is O(n) on average. The sum of two values is at most 2·10^9, which still fits in a 32-bit int, but long long is the safe choice.",
+      reinforce: "'Two Pointers on a Sorted Array' (notice the word sorted). The Algorithm Visualizer shows the pointer moves step by step.",
     },
     solution: POINTERS_SOLUTION,
     hidden: pairHidden,
@@ -329,10 +329,10 @@ export const SECRETS: Record<string, Secret> = {
     reflection: {
       wasWrong: "A sliding window assumed that adding numbers makes the sum bigger and removing numbers makes it smaller.",
       whyFailed: "That is only true for non-negative numbers. With negatives, a window that exceeds K can become valid again after more numbers are added, and dropping a number from the left can raise the sum. So moving the left pointer when the sum is too big can discard the start of the longest block.",
-      whatChanged: "The repair no longer depends on that monotonic behaviour. It tries every start and checks every end, keeping the longest block whose sum is at most K.",
+      whatChanged: "The repair no longer depends on the sum always rising when the window grows and falling when it shrinks. It tries every start and checks every end, keeping the longest block whose sum is at most K.",
       edgeCase: "A zero followed by a positive and a negative number (0, 1, −1 with K = 0), and arrays of only negative numbers.",
-      complexity: "O(n²) time and O(1) extra memory, which is fine for n ≤ 2 000. Faster methods exist (prefix sums with extra structure) but they are a different technique.",
-      reinforce: "Sliding Window (when it applies) and the Algorithm Visualizer, which shows the window moving.",
+      complexity: "O(n²) time and O(1) extra memory. With n ≤ 2 000 that is at most about 2 million additions, well inside the time limit.",
+      reinforce: "The lesson 'Sliding Window' (look for what it assumes about the numbers) and the Algorithm Visualizer, which shows the window moving.",
     },
     solution: WINDOW_SOLUTION,
     hidden: cheapHidden,

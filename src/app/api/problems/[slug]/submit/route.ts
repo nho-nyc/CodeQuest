@@ -12,6 +12,6 @@ export async function POST(req: Request, ctx: { params: Promise<{ slug: string }
       const b = body.parse(await req.json());
       return submit(user.id, slug, b.source, b.language);
     },
-    { limit: 10, bucket: "submit" },
+    { limit: 10, bucket: "submit", shared: true },
   );
 }

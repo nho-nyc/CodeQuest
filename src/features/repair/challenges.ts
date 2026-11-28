@@ -35,8 +35,8 @@ export type RepairChallenge = {
   memoryLimitMb: number;
   /** Visualizer that illustrates the underlying technique, when there is one. */
   visualizer: "two-pointers" | "sliding-window" | null;
-  /** Curriculum unit that teaches the concept (shown by name; opening it changes nothing). */
-  unit: string;
+  /** Existing curriculum lessons that teach the concept, by exact unit and lesson title (a test checks they exist). */
+  learn: Array<{ unit: string; lesson: string }>;
 };
 
 export const TIME_LIMIT_MS = 2000;
@@ -150,7 +150,7 @@ export const REPAIR_CHALLENGES: RepairChallenge[] = [
     timeLimitMs: TIME_LIMIT_MS,
     memoryLimitMb: MEMORY_LIMIT_MB,
     visualizer: null,
-    unit: "Greedy Algorithms, and Dynamic Programming: First Steps",
+    learn: [{ unit: "Greedy Algorithms", lesson: "The Greedy Choice (and When It Fails)" }, { unit: "Dynamic Programming: First Steps", lesson: "Tabulation: Fill a Table Bottom-Up" }],
   },
   {
     id: "max-subarray-boundary",
@@ -173,7 +173,7 @@ export const REPAIR_CHALLENGES: RepairChallenge[] = [
     timeLimitMs: TIME_LIMIT_MS,
     memoryLimitMb: MEMORY_LIMIT_MB,
     visualizer: null,
-    unit: "Dynamic Programming: First Steps",
+    learn: [{ unit: "Prefix Sums and Two Pointers", lesson: "Prefix Sums: Range Sums in O(1)" }, { unit: "Dynamic Programming: First Steps", lesson: "Tabulation: Fill a Table Bottom-Up" }],
   },
   {
     id: "two-pointers-unsorted",
@@ -183,7 +183,7 @@ export const REPAIR_CHALLENGES: RepairChallenge[] = [
     objective: "Recognise the precondition behind two pointers (sorted order), and repair the program so the pointer moves are justified.",
     statement: "Given n integers and a target t, decide whether two different positions i ≠ j exist with a[i] + a[j] = t. Print YES or NO.",
     inputFormat: "The first line has n and t. The second line has the n integers, in any order.",
-    outputFormat: "YES if such a pair exists, otherwise NO.",
+    outputFormat: "YES if such a pair exists, otherwise NO. You do not need to say which positions.",
     constraints: "2 ≤ n ≤ 100 000, −10^9 ≤ each value ≤ 10^9, −2·10^9 ≤ t ≤ 2·10^9.",
     approach: "Put one pointer at each end. If the pair is too small move the left pointer right, if it is too big move the right pointer left.",
     seems: "Moving a pointer to fix the sum feels logical, and the method is fast: it looks at each element once.",
@@ -196,7 +196,7 @@ export const REPAIR_CHALLENGES: RepairChallenge[] = [
     timeLimitMs: TIME_LIMIT_MS,
     memoryLimitMb: MEMORY_LIMIT_MB,
     visualizer: "two-pointers",
-    unit: "Two Pointers",
+    learn: [{ unit: "Prefix Sums and Two Pointers", lesson: "Two Pointers on a Sorted Array" }],
   },
   {
     id: "window-negatives",
@@ -219,7 +219,7 @@ export const REPAIR_CHALLENGES: RepairChallenge[] = [
     timeLimitMs: TIME_LIMIT_MS,
     memoryLimitMb: MEMORY_LIMIT_MB,
     visualizer: "sliding-window",
-    unit: "Sliding Window",
+    learn: [{ unit: "Prefix Sums and Two Pointers", lesson: "Sliding Window" }],
   },
 ];
 

@@ -288,3 +288,12 @@ Each investigation runs Predict, Experiment, Find the failure, Understand, Repai
 - **Hidden tests** are generated deterministically from fixed seeds; expected outputs come from TypeScript references written differently from the flawed programs, and the reference C++ solutions are validated against them through the Judge0 protocol in `tests/repair.test.ts`.
 - **Protections**: authenticated routes, per-user rate limits (Run 20/min, Submit 8/min, hints 60/min, reveal 10/min), 64 KB source limit, 2 s / 256 MB limits.
 - **No progression effects, no database**: the feature has no tables, XP, hearts, mastery or solved-status changes, and a failed or successful submission records nothing. Completion rewards are deliberately deferred: tracking completion safely needs a schema change.
+
+### Phase 5.1: production and educational audit (Repair Workshop hardening)
+
+The full report, with severity and evidence for each finding, is in [`docs/phase-5.1-audit.md`](docs/phase-5.1-audit.md). Summary of what changed:
+
+- **Hints and reveal are enforced on the server.** Progress (hints taken, judged submissions, acceptance) travels in a signed, httpOnly cookie per challenge, keyed from the user's password hash (plus optional `REPAIR_PROGRESS_SECRET`). Hint n needs hint n-1; the reference solution unlocks after one judged Submit, all three hints, or an Accepted verdict. No database table is needed. The learner can read the cookie but not raise it.
+- **Rate limits can be global.** Judge-backed endpoints (repair Run/Submit, practice Run/Submit) use `rateLimitShared`: with `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` set, one atomic counter is shared by all instances; without them, or if the store is down, they fall back to the per-instance limiter (never open). Per-instance limits are NOT global limits. A per-user cap on concurrent judge requests (2) is per instance.
+- **Judge errors are generic for learners** (details only in server logs), malformed Judge0 replies become "unavailable", and an invalid `JUDGE0_URL` is reported as a clear operational error. Repair routes cap the request body.
+- **Drafts** are stored per user and challenge in a versioned envelope (`cq:repair:v1:<userId>:<challengeId>`).

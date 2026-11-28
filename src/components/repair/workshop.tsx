@@ -9,6 +9,7 @@ import { RunPanel, Spinner } from "@/components/practice/results-panel";
 import { VERDICT_LABEL, verdictColor } from "@/components/practice/verdict";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { loadDraft, saveDraft } from "@/features/repair/draft";
 import { REPAIR_CHALLENGES, REPAIR_BY_ID, type Reflection, type RepairChallenge } from "@/features/repair/challenges";
 import { cn } from "@/lib/cn";
 import type { RepairRunResult, RepairSubmitResult } from "@/server/services/repair";
@@ -20,10 +21,16 @@ const CodeEditor = dynamic(() => import("@/components/practice/code-editor").the
 
 type Prediction = "works" | "fails";
 const STAGES = ["Understand", "Investigate", "Diagnose", "Repair", "Verify", "Reflect"] as const;
-const storeKey = (id: string) => `cq:repair:${id}`;
 
 async function api<T>(url: string, body: unknown): Promise<T> {
   const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const data = (await res.json().catch(() => ({}))) as { error?: string };
+  if (!res.ok) throw new Error(data.error ?? "Request failed");
+  return data as T;
+}
+
+async function apiGet<T>(url: string): Promise<T> {
+  const res = await fetch(url);
   const data = (await res.json().catch(() => ({}))) as { error?: string };
   if (!res.ok) throw new Error(data.error ?? "Request failed");
   return data as T;
@@ -75,13 +82,13 @@ function ReflectionCard({ c, r }: { c: RepairChallenge; r: Reflection }) {
       <div className="mt-3 flex flex-wrap gap-3 text-sm font-extrabold">
         <Link href={`/counterexample-lab?c=${c.labId}`} className="text-sky hover:underline">Counterexample Lab</Link>
         {c.visualizer && <Link href={`/visualizer?a=${c.visualizer}`} className="text-sky hover:underline">Visualizer</Link>}
-        <Link href="/learn" className="text-sky hover:underline">Learn: {c.unit}</Link>
+        <Link href="/learn" className="text-sky hover:underline">Learn: {c.learn.map((l) => `${l.lesson} (${l.unit})`).join("; ")}</Link>
       </div>
     </Card>
   );
 }
 
-function Challenge({ c, next, judgeConfigured }: { c: RepairChallenge; next: RepairChallenge | null; judgeConfigured: boolean }) {
+function Challenge({ c, next, judgeConfigured, userId }: { c: RepairChallenge; next: RepairChallenge | null; judgeConfigured: boolean; userId: string }) {
   const [panel, setPanel] = useState<"brief" | "code">("brief");
   const [prediction, setPrediction] = useState<Prediction | null>(null);
   const [code, setCode] = useState(c.flawedCode);
@@ -97,21 +104,38 @@ function Challenge({ c, next, judgeConfigured }: { c: RepairChallenge; next: Rep
   const [ran, setRan] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
+  const [canRevealNow, setCanRevealNow] = useState(false);
   useEffect(() => {
+    let store: Storage | null = null;
     try {
-      const saved = localStorage.getItem(storeKey(c.id));
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- the draft can only be read in the browser, after hydration
-      if (saved) setCode(saved);
+      store = window.localStorage;
     } catch {
-      /* storage unavailable: the draft simply is not remembered */
+      /* storage blocked: the draft simply is not remembered */
     }
+    const saved = loadDraft(store, userId, c.id);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- the draft can only be read in the browser, after hydration
+    if (saved) setCode(saved);
+  }, [c.id, userId]);
+  // What the server already knows this learner has earned (hints taken, whether the solution is unlocked) survives a reload.
+  useEffect(() => {
+    let alive = true;
+    apiGet<{ hints: string[]; canReveal: boolean }>(`/api/repair/${c.id}/progress`)
+      .then((p) => {
+        if (!alive) return;
+        setHints(p.hints);
+        setCanRevealNow(p.canReveal);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
   }, [c.id]);
   function changeCode(v: string) {
     setCode(v);
     try {
-      localStorage.setItem(storeKey(c.id), v);
+      saveDraft(window.localStorage, userId, c.id, v);
     } catch {
-      /* ignore */
+      /* storage blocked */
     }
   }
   function restore() {
@@ -149,6 +173,7 @@ function Challenge({ c, next, judgeConfigured }: { c: RepairChallenge; next: Rep
       setSub(r);
       setSubmitted(true);
       if (r.reflection) setReflection(r.reflection);
+      apiGet<{ canReveal: boolean }>(`/api/repair/${c.id}/progress`).then((p) => setCanRevealNow(p.canReveal)).catch(() => {});
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not submit your code");
     } finally {
@@ -157,8 +182,9 @@ function Challenge({ c, next, judgeConfigured }: { c: RepairChallenge; next: Rep
   }
   async function showHint() {
     try {
-      const h = await api<{ level: number; text: string }>(`/api/repair/${c.id}/hint`, { level: hints.length + 1 });
+      const h = await api<{ level: number; text: string; canReveal: boolean }>(`/api/repair/${c.id}/hint`, { level: hints.length + 1 });
       setHints((x) => [...x, h.text]);
+      setCanRevealNow(h.canReveal);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not load the hint");
     }
@@ -250,16 +276,21 @@ function Challenge({ c, next, judgeConfigured }: { c: RepairChallenge; next: Rep
               ))}
             </ol>
             {hints.length < 3 ? (
-              <Button size="sm" variant="outline" className="mt-3" onClick={showHint} disabled={prediction === null || !ran}>Show hint {hints.length + 1} of 3</Button>
+              <Button size="sm" variant="outline" className="mt-3" onClick={showHint} disabled={prediction === null}>Show hint {hints.length + 1} of 3</Button>
             ) : (
               <p className="mt-2 text-xs text-muted">That is all three hints. The next step is yours: edit the code.</p>
             )}
-            {(prediction === null || !ran) && hints.length < 3 && <p className="mt-2 text-xs text-muted">Make a prediction and run the visible tests first. Hints work better once you have seen a failure.</p>}
+            {prediction === null && hints.length < 3 && <p className="mt-2 text-xs text-muted">Make your prediction first. Hints work best after you have run the visible tests and seen a failure.</p>}
           </Card>
 
           <Card className="p-4 sm:p-5">
             <h3 className="text-xs font-extrabold uppercase tracking-widest text-muted">Stuck?</h3>
-            {!solution && !confirmSolution && <Button size="sm" variant="ghost" className="mt-2" onClick={() => setConfirmSolution(true)}>Show a reference solution</Button>}
+            {!solution && !confirmSolution && (
+              <>
+                <Button size="sm" variant="ghost" className="mt-2" onClick={() => setConfirmSolution(true)} disabled={!canRevealNow} aria-describedby="reveal-rule">Show a reference solution</Button>
+                <p id="reveal-rule" className="mt-1 text-xs text-muted">{canRevealNow ? "Available. Try the hints first." : "Unlocks after you submit once, or after you have read all three hints."}</p>
+              </>
+            )}
             {confirmSolution && !solution && (
               <div className="mt-2 flex flex-col gap-2 text-sm" role="group" aria-label="Confirm reveal">
                 <p>Seeing the answer skips the repair, which is where the learning happens. Try the hints first. Reveal it anyway?</p>
@@ -344,7 +375,7 @@ function Challenge({ c, next, judgeConfigured }: { c: RepairChallenge; next: Rep
   );
 }
 
-export function Workshop({ initial, judgeConfigured }: { initial: string; judgeConfigured: boolean }) {
+export function Workshop({ initial, judgeConfigured, userId }: { initial: string; judgeConfigured: boolean; userId: string }) {
   const [id, setId] = useState(initial);
   const c = REPAIR_BY_ID[id] ?? REPAIR_CHALLENGES[0]!;
   const idx = REPAIR_CHALLENGES.indexOf(c);
@@ -361,7 +392,7 @@ export function Workshop({ initial, judgeConfigured }: { initial: string; judgeC
           </button>
         ))}
       </div>
-      <Challenge key={c.id} c={c} next={REPAIR_CHALLENGES[idx + 1] ?? null} judgeConfigured={judgeConfigured} />
+      <Challenge key={c.id} c={c} next={REPAIR_CHALLENGES[idx + 1] ?? null} judgeConfigured={judgeConfigured} userId={userId} />
     </div>
   );
 }

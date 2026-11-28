@@ -82,11 +82,17 @@ export class Judge0Judge implements Judge {
     try {
       res = await this.f(`${this.cfg.baseUrl.replace(/\/$/, "")}${path}`, { ...init, headers: this.headers(), signal: AbortSignal.timeout(20_000) });
     } catch {
-      throw new JudgeUnavailableError();
+      throw new JudgeUnavailableError("network error or timeout reaching Judge0");
     }
-    if (res.status === 401 || res.status === 403 || res.status >= 500 || res.status === 429) throw new JudgeUnavailableError(`Judge0 responded with HTTP ${res.status}`);
-    if (!res.ok) throw new JudgeUnavailableError(`Judge0 rejected the request (HTTP ${res.status})`);
-    return (await res.json()) as T;
+    // Learners only ever see the generic message; the status is for the operator's logs (never the URL, headers or body).
+    if (res.status === 401 || res.status === 403) throw new JudgeUnavailableError(`Judge0 refused our credentials (HTTP ${res.status}): check JUDGE0_AUTH_TOKEN / RapidAPI settings`);
+    if (res.status === 429 || res.status >= 500) throw new JudgeUnavailableError(`Judge0 responded with HTTP ${res.status}`);
+    if (!res.ok) throw new JudgeUnavailableError(`Judge0 rejected the request (HTTP ${res.status}): check the language ids and limits`);
+    try {
+      return (await res.json()) as T;
+    } catch {
+      throw new JudgeUnavailableError("Judge0 returned a reply that is not valid JSON");
+    }
   }
 
   async run(source: string, language: Language, inputs: string[], limits: Limits): Promise<TestRun[]> {
@@ -114,7 +120,7 @@ export class Judge0Judge implements Judge {
         })),
       }),
     });
-    if (created.length !== inputs.length || created.some((c) => !c.token)) throw new JudgeUnavailableError("Judge0 did not accept the submission");
+    if (!Array.isArray(created) || created.length !== inputs.length || created.some((c) => !c || !c.token)) throw new JudgeUnavailableError("Judge0 did not accept the submission batch");
     const tokens = created.map((c) => c.token!);
 
     const deadline = Date.now() + (this.cfg.pollTimeoutMs ?? 45_000);
@@ -123,10 +129,11 @@ export class Judge0Judge implements Judge {
       const res = await this.call<{ submissions: RawResult[] }>(
         `/submissions/batch?base64_encoded=true&tokens=${tokens.join(",")}&fields=token,status,stdout,stderr,compile_output,message,time,memory`,
       );
-      const byToken = new Map(res.submissions.map((s) => [s.token, s]));
+      if (!res || !Array.isArray(res.submissions)) throw new JudgeUnavailableError("Judge0 returned an unexpected reply while polling");
+      const byToken = new Map(res.submissions.filter((s) => s && typeof s.token === "string" && s.status && typeof s.status.id === "number").map((s) => [s.token, s]));
       const all = tokens.map((t) => byToken.get(t));
       if (all.every((s) => s && s.status.id >= 3)) return all.map((s) => this.toRun(s!, limits));
-      if (Date.now() > deadline) throw new JudgeUnavailableError("Judging timed out");
+      if (Date.now() > deadline) throw new JudgeUnavailableError("judging did not finish before the polling deadline");
       await new Promise((r) => setTimeout(r, delay));
       delay = Math.min(delay * 1.5, 2000);
     }
